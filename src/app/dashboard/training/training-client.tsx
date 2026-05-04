@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Database, CalendarDays, BookOpen, AlertCircle, X, Loader2, ArrowRight, Shield, Clock, ExternalLink, Edit2, Trash2, LayoutGrid, List, Check, Save, Users, Image as ImageIcon, Video, UploadCloud, FileText } from 'lucide-react'
+import { Plus, Database, CalendarDays, BookOpen, AlertCircle, X, Loader2, ArrowRight, Shield, Clock, ExternalLink, Edit2, Trash2, LayoutGrid, List, Check, Save, Users, Image as ImageIcon, Video, UploadCloud, FileText, Download } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
+import * as XLSX from 'xlsx'
 import { showSuccessToast, showErrorToast } from '@/utils/toast'
 import { useLang } from '@/components/lang-provider'
 import Link from 'next/link'
@@ -24,6 +25,7 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
     const [editingEventId, setEditingEventId] = useState<string | null>(null)
     const [editingEventTitle, setEditingEventTitle] = useState('')
     const [loading, setLoading] = useState(false)
+    const [loadingExport, setLoadingExport] = useState(false)
 
     // Form states
     const [newEvent, setNewEvent] = useState({ title: '', event_date: '', event_time: '', location: '', objectives: '' })
@@ -208,6 +210,86 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
         }
     }
 
+    const exportToExcel = async () => {
+        setLoadingExport(true)
+        try {
+            const { data: eventsData, error: evErr } = await supabase
+                .from('events')
+                .select(`
+                    id, title, event_date, event_time, location, objectives, event_type, status,
+                    event_plan_slots (
+                        id, slot_type, custom_title, duration_minutes, order_index,
+                        drills (name)
+                    ),
+                    event_notes (
+                        content
+                    ),
+                    event_attendance (
+                        status
+                    )
+                `)
+                .order('event_date', { ascending: false })
+
+            if (evErr) throw evErr
+
+            const rows: any[] = []
+            
+            eventsData.forEach((ev: any) => {
+                const date = new Date(ev.event_date + 'T00:00:00').toLocaleDateString('es-AR')
+                const type = ev.event_type === 'Partido' ? 'Juego' : 'Drill'
+                const attendanceCount = ev.event_attendance?.filter((a: any) => a.status === 'Presente').length || 0
+                const notes = ev.event_notes?.map((n: any) => n.content).join(' | ') || ''
+                const sortedSlots = (ev.event_plan_slots || []).sort((a: any, b: any) => a.order_index - b.order_index)
+                
+                if (sortedSlots.length === 0) {
+                    rows.push({
+                        'Fecha Entrenamiento': date,
+                        'Objetivos': ev.objectives || '',
+                        'Hora de inicio': ev.event_time?.slice(0, 5) || '',
+                        'Si fue Drill o Juego': type,
+                        'Bloque': '-',
+                        'Tiempo': '-',
+                        'Tiempo Total': '-',
+                        'Notas': notes,
+                        'Asistencia': attendanceCount
+                    })
+                } else {
+                    let accumulatedTime = 0
+                    sortedSlots.forEach((slot: any) => {
+                        accumulatedTime += (slot.duration_minutes || 0)
+                        const blockName = slot.slot_type === 'drill' 
+                            ? (slot.drills?.name || slot.custom_title || 'Drill')
+                            : slot.custom_title || (slot.slot_type === 'hydration' ? 'Hidratación' : 'Descanso')
+                            
+                        rows.push({
+                            'Fecha Entrenamiento': date,
+                            'Objetivos': ev.objectives || '',
+                            'Hora de inicio': ev.event_time?.slice(0, 5) || '',
+                            'Si fue Drill o Juego': type,
+                            'Bloque': blockName,
+                            'Tiempo': slot.duration_minutes || 0,
+                            'Tiempo Total': accumulatedTime,
+                            'Notas': notes,
+                            'Asistencia': attendanceCount
+                        })
+                    })
+                }
+            })
+
+            const worksheet = XLSX.utils.json_to_sheet(rows)
+            const workbook = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Entrenamientos")
+            XLSX.writeFile(workbook, "Reporte_Entrenamientos.xlsx")
+            
+            showSuccessToast('Reporte Exportado', 'El archivo Excel se ha descargado correctamente.')
+        } catch (error) {
+            console.error(error)
+            showErrorToast('Error', 'No se pudo exportar el reporte.')
+        } finally {
+            setLoadingExport(false)
+        }
+    }
+
     return (
         <div className="p-6 md:p-10 min-h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-liceo-primary/30 via-background to-background dark:from-liceo-primary/20 dark:via-background dark:to-background text-foreground transition-colors space-y-8">
             <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
@@ -231,6 +313,16 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
                         </div>
                     )}
                     <div className="flex items-center gap-3 w-full sm:w-auto">
+                        {viewMode === 'events' && (
+                            <button
+                                onClick={exportToExcel}
+                                disabled={loadingExport}
+                                className="flex-1 sm:flex-none bg-emerald-500 hover:bg-emerald-600 rounded-xl px-4 py-2.5 shadow-sm text-white font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {loadingExport ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                Exportar
+                            </button>
+                        )}
                         <button
                             onClick={() => setViewMode(viewMode === 'events' ? 'drills' : 'events')}
                             className="flex-1 sm:flex-none bg-white hover:bg-gray-50 dark:bg-[#0B1526] dark:hover:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 shadow-sm text-liceo-primary dark:text-[#5EE5F8] font-bold text-sm transition-all flex items-center justify-center gap-2"
