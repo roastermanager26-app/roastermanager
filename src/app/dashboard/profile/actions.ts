@@ -28,7 +28,7 @@ export async function activateUserAction(formData: {
     let newAuthId: string | undefined;
 
     // Si tenemos la Service Role Key, usamos el cliente de admin para saltar Rate Limits
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_SECRET;
     if (serviceRoleKey) {
         const adminClient = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -64,7 +64,7 @@ export async function activateUserAction(formData: {
 
         if (authError) {
             if (authError.message.includes('rate limit')) {
-                return { error: 'Límite de Supabase alcanzado. Por favor, asegurate que la SUPABASE_SERVICE_ROLE_KEY esté en .env.local o esperá 1 minuto.' };
+                return { error: 'Límite de Supabase alcanzado. Por favor, asegurate que la SUPABASE_SERVICE_ROLE_SECRET esté en .env.local o esperá 1 minuto.' };
             }
             return { error: authError.message };
         }
@@ -118,7 +118,7 @@ export async function updatePasswordAction(oldPassword: string, newPassword: str
     if (authError || !user || !user.email) return { success: false, error: 'No autenticado.' }
 
     // Verificar contraseña actual con un cliente sin persistencia
-    const authClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } })
+    const authClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_TOKEN!, { auth: { persistSession: false } })
     const { error: verifyError } = await authClient.auth.signInWithPassword({ email: user.email, password: oldPassword })
 
     if (verifyError) {
@@ -184,7 +184,7 @@ export async function deleteUserAdminAction(userId: string) {
     // 2. Borrar del perfil (Esto es simple si es Mock)
     // Si es real, el borrado de Auth requiere Service Role Key. 
     // Por ahora borramos el perfil. Si tiene Auth, quedará el "orphaned" user en Auth a menos que usemos adminClient.
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_SECRET;
     if (serviceRoleKey) {
         const adminClient = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,

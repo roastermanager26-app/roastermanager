@@ -11,7 +11,7 @@ export async function updatePasswordAction(oldPassword: string, newPassword: str
     if (authError || !user || !user.email) return { success: false, error: 'No autenticado.' }
 
     // 1. Verificar contraseña actual con un cliente sin persistencia
-    const authClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } })
+    const authClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_TOKEN!, { auth: { persistSession: false } })
     const { error: verifyError } = await authClient.auth.signInWithPassword({ email: user.email, password: oldPassword })
 
     if (verifyError) {
