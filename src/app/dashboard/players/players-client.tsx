@@ -28,7 +28,15 @@ type Player = {
     skills?: any[]
 }
 
-export default function PlayersClient({ initialPlayers }: { initialPlayers: Player[] }) {
+export default function PlayersClient({ 
+    initialPlayers,
+    tenantName = 'RoasterManager',
+    categoryName = 'Todas las Categorías'
+}: { 
+    initialPlayers: Player[]
+    tenantName?: string
+    categoryName?: string
+}) {
     const { t } = useLang()
     const router = useRouter()
     const supabase = createClient()
@@ -155,7 +163,7 @@ export default function PlayersClient({ initialPlayers }: { initialPlayers: Play
                         {t.roster.title}
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 font-medium">
-                        {t.roster.subtitle}
+                        Directorio de Jugadores — {categoryName} • {tenantName}
                     </p>
                 </div>
                 <div className="flex gap-3">

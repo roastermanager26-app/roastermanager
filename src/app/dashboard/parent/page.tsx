@@ -75,11 +75,25 @@ export default async function ParentDashboardPage() {
         .order('created_at', { ascending: false })
         .limit(3)
 
+    let tenantName = 'RoasterManager'
+    if (profile?.tenant_id) {
+        const { data: tenant } = await supabase
+            .from('tenants')
+            .select('name')
+            .eq('id', profile.tenant_id)
+            .single()
+        if (tenant) {
+            tenantName = tenant.name
+        }
+    }
+
     return (
         <ParentDashboardClient
             profile={profile}
             childrenData={childrenData}
             billboardPosts={billboardPosts || []}
+            tenantName={tenantName}
         />
     )
 }
+

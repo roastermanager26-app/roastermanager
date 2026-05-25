@@ -24,7 +24,7 @@ interface Event {
     category: string
 }
 
-export default function CalendarClient({ initialEvents }: { initialEvents: Event[] }) {
+export default function CalendarClient({ initialEvents, tenantName = 'RoasterManager' }: { initialEvents: Event[], tenantName?: string }) {
     const { t, lang } = useLang()
     const [isMounted, setIsMounted] = React.useState(false)
 
@@ -73,10 +73,10 @@ export default function CalendarClient({ initialEvents }: { initialEvents: Event
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div className="space-y-1">
                     <h1 className="text-4xl font-black text-liceo-primary dark:text-liceo-gold tracking-tight uppercase italic leading-none">
-                        Calendario M13
+                        Calendario
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 font-bold text-xs uppercase tracking-widest">
-                        Próximos entrenamientos, partidos y eventos
+                        Próximos entrenamientos, partidos y eventos • {tenantName}
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -169,7 +169,7 @@ export default function CalendarClient({ initialEvents }: { initialEvents: Event
                                                             <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-white/5 flex items-center justify-center shrink-0">
                                                                 <Info className="w-4 h-4 text-liceo-gold" />
                                                             </div>
-                                                            <span className="truncate">{event.category || 'M13'} • Liceo Naval</span>
+                                                            <span className="truncate">{event.category || 'General'} • {tenantName}</span>
                                                         </div>
                                                     </div>
 

@@ -41,7 +41,7 @@ export const dicts = {
         },
         dashboard: {
             title: "Visión General",
-            subtitle: "Gestión de plantilla M13 Liceo Naval",
+            subtitle: "Gestión de plantilla",
             squad: "Plantel",
             players: "Jugadores",
             rosterBalance: "Balance de Plantilla",
@@ -62,7 +62,7 @@ export const dicts = {
         },
         roster: {
             title: "Plantel Completo",
-            subtitle: "Directorio de Jugadores M13",
+            subtitle: "Directorio de Jugadores",
             searchPlaceholder: "Buscar jugador...",
             filterAll: "Todos",
             filterForwards: "Forwards",
@@ -234,7 +234,7 @@ export const dicts = {
         },
         dashboard: {
             title: "Squad Overview",
-            subtitle: "M13 Liceo Naval Squad Management",
+            subtitle: "Squad Management",
             squad: "Roster",
             players: "Players",
             rosterBalance: "Roster Balance",
@@ -255,7 +255,7 @@ export const dicts = {
         },
         roster: {
             title: "Full Roster",
-            subtitle: "M13 Player Directory",
+            subtitle: "Player Directory",
             searchPlaceholder: "Search player...",
             filterAll: "All",
             filterForwards: "Forwards",

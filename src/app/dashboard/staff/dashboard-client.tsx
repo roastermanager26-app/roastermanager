@@ -6,7 +6,19 @@ import { useLang } from '@/components/lang-provider'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useMemo } from 'react'
 
-export default function DashboardClient({ players, events, attendance }: { players: any[], events: any[], attendance: any[] }) {
+export default function DashboardClient({ 
+    players, 
+    events, 
+    attendance, 
+    tenantName = 'RoasterManager', 
+    categoryName = 'Todas las Categorías' 
+}: { 
+    players: any[], 
+    events: any[], 
+    attendance: any[], 
+    tenantName?: string, 
+    categoryName?: string 
+}) {
     const { t } = useLang()
 
     const activePlayers = useMemo(() => players.filter(p => p.status === 'Activo'), [players])
@@ -189,7 +201,7 @@ export default function DashboardClient({ players, events, attendance }: { playe
                         {t.dashboard.title}
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 font-medium">
-                        {t.dashboard.subtitle}
+                        Gestión de plantilla — {categoryName} • {tenantName}
                     </p>
                 </div>
                 <div className="flex gap-4">

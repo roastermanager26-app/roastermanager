@@ -15,9 +15,21 @@ export default async function ParentCalendarPage() {
     // Obtener perfil para verificar is_parent (opcional pero recomendado)
     const { data: profile } = await supabase
         .from('profiles')
-        .select('is_parent')
+        .select('is_parent, tenant_id')
         .eq('id', user.id)
         .single()
+
+    let tenantName = 'RoasterManager'
+    if (profile?.tenant_id) {
+        const { data: tenant } = await supabase
+            .from('tenants')
+            .select('name')
+            .eq('id', profile.tenant_id)
+            .single()
+        if (tenant) {
+            tenantName = tenant.name
+        }
+    }
 
     // Fetch upcoming events from the next 60 days
     const today = new Date().toISOString()
@@ -27,5 +39,6 @@ export default async function ParentCalendarPage() {
         .gte('event_date', today)
         .order('event_date', { ascending: true })
 
-    return <CalendarClient initialEvents={events || []} />
+    return <CalendarClient initialEvents={events || []} tenantName={tenantName} />
 }
+

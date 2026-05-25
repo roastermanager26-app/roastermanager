@@ -14,7 +14,7 @@ export default async function PlayersPage() {
     // Check user role
     const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, tenant_id')
         .eq('id', user.id)
         .single()
 
@@ -25,8 +25,32 @@ export default async function PlayersPage() {
         redirect('/dashboard/parent')
     }
 
+    let tenantName = 'RoasterManager'
+    if (profile?.tenant_id) {
+        const { data: tenant } = await supabase
+            .from('tenants')
+            .select('name')
+            .eq('id', profile.tenant_id)
+            .single()
+        if (tenant) {
+            tenantName = tenant.name
+        }
+    }
+
     const cookieStore = await cookies()
     const selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+
+    let categoryName = 'Todas las Categorías'
+    if (selectedCategoryId !== 'All') {
+        const { data: cat } = await supabase
+            .from('categories')
+            .select('name')
+            .eq('id', selectedCategoryId)
+            .single()
+        if (cat) {
+            categoryName = `Categoría ${cat.name}`
+        }
+    }
 
     // Fetch players from supabase
     let playersQuery = supabase
@@ -38,7 +62,12 @@ export default async function PlayersPage() {
         playersQuery = playersQuery.eq('category_id', selectedCategoryId)
     }
 
-    const { data: players, error } = await playersQuery
+    const { data: players } = await playersQuery
 
-    return <PlayersClient initialPlayers={players || []} />
+    return <PlayersClient 
+        initialPlayers={players || []} 
+        tenantName={tenantName} 
+        categoryName={categoryName} 
+    />
 }
+

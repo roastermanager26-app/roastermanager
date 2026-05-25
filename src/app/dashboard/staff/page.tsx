@@ -14,7 +14,7 @@ export default async function DashboardPage() {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('role, is_parent, is_active, force_password_change')
+        .select('role, is_parent, is_active, force_password_change, tenant_id')
         .eq('id', user.id)
         .single()
 
@@ -32,8 +32,32 @@ export default async function DashboardPage() {
         redirect('/login?error=Cuenta inactiva')
     }
 
+    let tenantName = 'RoasterManager'
+    if (profile?.tenant_id) {
+        const { data: tenant } = await supabase
+            .from('tenants')
+            .select('name')
+            .eq('id', profile.tenant_id)
+            .single()
+        if (tenant) {
+            tenantName = tenant.name
+        }
+    }
+
     const cookieStore = await cookies()
     const selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+
+    let categoryName = 'Todas las Categorías'
+    if (selectedCategoryId !== 'All') {
+        const { data: cat } = await supabase
+            .from('categories')
+            .select('name')
+            .eq('id', selectedCategoryId)
+            .single()
+        if (cat) {
+            categoryName = `Categoría ${cat.name}`
+        }
+    }
 
     let playersQuery = supabase.from('players').select('*, skills(*)').neq('status', 'Abandonado')
     let eventsQuery = supabase.from('events').select('*')
@@ -60,6 +84,12 @@ export default async function DashboardPage() {
         }
     })
 
-    return <DashboardClient players={playersWithLatestSkills} events={events || []} attendance={filteredAttendance || []} />
+    return <DashboardClient 
+        players={playersWithLatestSkills} 
+        events={events || []} 
+        attendance={filteredAttendance || []} 
+        tenantName={tenantName} 
+        categoryName={categoryName} 
+    />
 }
 

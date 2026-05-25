@@ -33,9 +33,10 @@ interface ParentDashboardClientProps {
     profile: any
     childrenData: any[]
     billboardPosts: any[]
+    tenantName?: string
 }
 
-export default function ParentDashboardClient({ profile, childrenData, billboardPosts }: ParentDashboardClientProps) {
+export default function ParentDashboardClient({ profile, childrenData, billboardPosts, tenantName = 'RoasterManager' }: ParentDashboardClientProps) {
     const { t } = useLang()
     const [selectedChildIndex, setSelectedChildIndex] = useState(0)
 
@@ -176,7 +177,7 @@ export default function ParentDashboardClient({ profile, childrenData, billboard
                             ¡Hola, {profile?.full_name?.split(' ')[0]}!
                         </h1>
                         <p className="text-gray-500 dark:text-gray-400 font-medium text-sm">
-                            Tu portal de seguimiento M13 • Liceo Naval
+                            Tu portal de seguimiento — {activeChild ? `${activeChild.category || 'Plantel'} • ` : ''}{tenantName}
                         </p>
                     </div>
                     {childrenData.length === 0 && (
