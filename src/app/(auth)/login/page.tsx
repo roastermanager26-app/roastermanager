@@ -4,8 +4,7 @@ import { useActionState, useState, useEffect } from 'react'
 import { login } from '../actions'
 import { signInWithGoogle } from '../social-auth'
 import Link from 'next/link'
-import Image from 'next/image'
-import { Users, ShieldCheck, Eye, EyeOff } from 'lucide-react'
+import { Users, ShieldCheck, Eye, EyeOff, Trophy } from 'lucide-react'
 
 export default function LoginPage() {
     const [entryPoint, setEntryPoint] = useState<'staff' | 'parent'>('staff')
@@ -28,20 +27,21 @@ export default function LoginPage() {
     )
 
     return (
-        <div className="min-h-screen bg-[#0B1526] flex items-center justify-center p-4 selection:bg-liceo-gold selection:text-[#0B1526] text-white font-sans">
+        <div className="min-h-screen bg-[#0B1526] flex items-center justify-center p-4 selection:bg-[#5EE5F8] selection:text-[#0B1526] text-white font-sans">
             <div className="max-w-md w-full bg-[#111f38] rounded-3xl shadow-2xl p-8 border border-white/5 relative overflow-hidden group">
                 {/* Glow effect */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-liceo-gold/5 rounded-full blur-3xl -my-32 transition-opacity opacity-50"></div>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#5EE5F8]/5 rounded-full blur-3xl -my-32 transition-opacity opacity-50"></div>
 
                 <div className="text-center flex flex-col items-center relative z-10 mb-6">
-                    <div className="w-16 h-16 rounded-full bg-[#1e293b] flex items-center justify-center shadow-lg border border-liceo-gold/30 mb-4">
-                        <Image src="/logo-cglnm-liceo-naval.png" alt="Liceo Naval Logo" width={60} height={60} className="object-contain p-2" />
+                    <div className="w-16 h-16 rounded-full bg-[#1e293b] flex items-center justify-center shadow-lg border border-[#5EE5F8]/30 mb-4">
+                        <Trophy className="w-8 h-8 text-[#5EE5F8] drop-shadow-[0_0_8px_rgba(94,229,248,0.5)]" />
                     </div>
                     <h1 className="text-2xl font-extrabold tracking-tight text-white mb-1 uppercase">
-                        Liceo Naval <span className="text-liceo-gold">M13</span>
+                        Roaster<span className="text-[#5EE5F8]">Manager</span>
                     </h1>
                     <p className="text-gray-400 text-xs font-semibold tracking-widest uppercase opacity-70">Acceso al Sistema</p>
                 </div>
+
 
                 {/* Dual Toggle Selector */}
                 <div className="flex p-1 bg-[#0B1526] rounded-2xl mb-8 relative z-10 border border-white/5">
