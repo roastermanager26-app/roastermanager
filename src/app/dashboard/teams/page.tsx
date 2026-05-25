@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import TeamsClient from './teams-client'
 
 export const dynamic = 'force-dynamic'
@@ -25,15 +26,27 @@ export default async function TeamsPage() {
         redirect('/dashboard/parent')
     }
 
-    const { data: teams } = await supabase
+    const cookieStore = await cookies()
+    const selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+
+    let teamsQuery = supabase
         .from('teams')
         .select('*')
         .order('name', { ascending: true })
 
-    const { data: players } = await supabase
+    let playersQuery = supabase
         .from('players')
-        .select('id, first_name, last_name, position, category')
+        .select('id, first_name, last_name, position, category_id, category')
         .neq('status', 'Abandonado')
+
+    if (selectedCategoryId !== 'All') {
+        teamsQuery = teamsQuery.eq('category_id', selectedCategoryId)
+        playersQuery = playersQuery.eq('category_id', selectedCategoryId)
+    }
+
+    const { data: teams } = await teamsQuery
+    const { data: players } = await playersQuery
 
     return <TeamsClient initialTeams={teams || []} allPlayers={players || []} />
 }
+

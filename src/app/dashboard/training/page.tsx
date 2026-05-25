@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import TrainingClient from './training-client'
 
 export const dynamic = 'force-dynamic'
@@ -25,22 +26,38 @@ export default async function TrainingPage() {
         redirect('/dashboard/parent')
     }
 
+    const cookieStore = await cookies()
+    const selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+
     // First attempt to fetch with event_type filter (new schema)
-    let { data: events, error: evErr } = await supabase
+    let eventsQuery = supabase
         .from('events')
         .select('*')
         .eq('event_type', 'Entrenamiento')
         .order('event_date', { ascending: false })
 
+    if (selectedCategoryId !== 'All') {
+        eventsQuery = eventsQuery.eq('category_id', selectedCategoryId)
+    }
+
+    let { data: events, error: evErr } = await eventsQuery
+
     // If column missing (SQL not run yet), fallback to get all
     if (evErr && evErr.code === '42703') {
-        const fallback = await supabase
+        let fallbackQuery = supabase
             .from('events')
             .select('*')
             .order('event_date', { ascending: false })
+
+        if (selectedCategoryId !== 'All') {
+            fallbackQuery = fallbackQuery.eq('category_id', selectedCategoryId)
+        }
+
+        const fallback = await fallbackQuery
         events = fallback.data
         evErr = fallback.error
     }
+
 
     const { data: drills, error: drErr } = await supabase
         .from('drills')

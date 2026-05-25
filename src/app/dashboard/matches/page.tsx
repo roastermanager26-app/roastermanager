@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import MatchesClient from './matches-client'
 
 export const dynamic = 'force-dynamic'
@@ -25,21 +26,33 @@ export default async function MatchesPage() {
         redirect('/dashboard/parent')
     }
 
-    const { data: events, error: evErr } = await supabase
+    const cookieStore = await cookies()
+    const selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+
+    let eventsQuery = supabase
         .from('events')
         .select('*, clubs(*)')
         .eq('event_type', 'Partido')
         .order('event_date', { ascending: false })
+
+    let teamsQuery = supabase
+        .from('teams')
+        .select('*')
+        .order('name', { ascending: true })
+
+    if (selectedCategoryId !== 'All') {
+        eventsQuery = eventsQuery.eq('category_id', selectedCategoryId)
+        teamsQuery = teamsQuery.eq('category_id', selectedCategoryId)
+    }
+
+    const { data: events, error: evErr } = await eventsQuery
 
     const { data: clubs, error: clErr } = await supabase
         .from('clubs')
         .select('*')
         .order('name', { ascending: true })
 
-    const { data: teams, error: tErr } = await supabase
-        .from('teams')
-        .select('*')
-        .order('name', { ascending: true })
+    const { data: teams, error: tErr } = await teamsQuery
 
     const { data: profiles, error: profErr } = await supabase
         .from('profiles')
@@ -60,3 +73,4 @@ export default async function MatchesPage() {
         needsSetup={needsSetup}
     />
 }
+

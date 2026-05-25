@@ -31,12 +31,31 @@ function DashboardHeader() {
     const supabase = createClient()
     const [scrolled, setScrolled] = useState(false)
 
+    const [tenantName, setTenantName] = useState('Cargando...')
+    const [tenantLogo, setTenantLogo] = useState<string | null>(null)
+    const [categories, setCategories] = useState<any[]>([])
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string>('All')
+    const [userRole, setUserRole] = useState<string | null>(null)
+
     const basePath = pathname.includes('/dashboard/parent') ? '/dashboard/parent' : '/dashboard/staff'
     const isStaff = basePath === '/dashboard/staff'
 
     const isActive = (path: string) => {
         if (path === basePath) return pathname === basePath
         return pathname.startsWith(path)
+    }
+
+    const getCookie = (name: string) => {
+        if (typeof window === 'undefined') return null
+        const value = `; ${document.cookie}`
+        const parts = value.split(`; ${name}=`)
+        if (parts.length === 2) return parts.pop()?.split(';').shift()
+        return null
+    }
+
+    const setCookie = (name: string, val: string) => {
+        if (typeof window === 'undefined') return
+        document.cookie = `${name}=${val}; path=/; max-age=${60 * 60 * 24 * 365}`
     }
 
     useEffect(() => {
@@ -47,6 +66,74 @@ function DashboardHeader() {
         return () => window.removeEventListener('scroll', handleScroll)
     }, [])
 
+    useEffect(() => {
+        const fetchHeaderData = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+
+            // Fetch profile
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('tenant_id, role')
+                .eq('id', user.id)
+                .single()
+
+            if (!profile) return
+            setUserRole(profile.role)
+
+            if (profile.tenant_id) {
+                // Fetch tenant
+                const { data: tenant } = await supabase
+                    .from('tenants')
+                    .select('name, logo_url')
+                    .eq('id', profile.tenant_id)
+                    .single()
+
+                if (tenant) {
+                    setTenantName(tenant.name)
+                    setTenantLogo(tenant.logo_url)
+                }
+
+                // Fetch categories
+                const { data: cats } = await supabase
+                    .from('categories')
+                    .select('id, name')
+                    .eq('tenant_id', profile.tenant_id)
+
+                if (!cats || cats.length === 0) {
+                    // Create default 'General' category for new clubs
+                    const { data: newCat } = await supabase
+                        .from('categories')
+                        .insert({ name: 'General', tenant_id: profile.tenant_id })
+                        .select()
+                        .single()
+                    if (newCat) {
+                        setCategories([newCat])
+                    }
+                } else {
+                    setCategories(cats)
+                }
+            }
+
+            // Restore active category from cookie
+            const savedCat = getCookie('roaster_selected_category_id')
+            if (savedCat) {
+                setSelectedCategoryId(savedCat)
+            } else {
+                setSelectedCategoryId('All')
+            }
+        }
+
+        fetchHeaderData()
+    }, [supabase])
+
+    const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newCat = e.target.value
+        setCookie('roaster_selected_category_id', newCat)
+        setSelectedCategoryId(newCat)
+        router.refresh()
+    }
+
     const handleLogout = async () => {
         await supabase.auth.signOut()
         router.push('/login')
@@ -56,33 +143,58 @@ function DashboardHeader() {
         <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 dark:bg-[#0B1526]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/5 shadow-md py-3' : 'bg-white dark:bg-[#0B1526] py-4 md:py-5'} px-4 md:px-6 flex items-center justify-between`}>
             {/* Left Box: Logo & Title */}
             <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-gray-200 dark:border-liceo-gold/30 bg-gray-50 dark:bg-[#111f38] flex items-center justify-center overflow-hidden flex-shrink-0">
-                    <Image src="/logo-cglnm-liceo-naval.png" alt="Liceo Logo" width={32} height={32} className="object-contain p-1" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-gray-200 dark:border-[#5EE5F8]/30 bg-gray-50 dark:bg-[#111f38] flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
+                    {tenantLogo ? (
+                        <img src={tenantLogo} alt="Logo" className="object-contain w-full h-full p-1" />
+                    ) : (
+                        <span className="font-black text-[#5EE5F8] text-sm uppercase">
+                            {tenantName.substring(0, 2)}
+                        </span>
+                    )}
                 </div>
                 <div className="flex flex-col">
-                    <h1 className="text-liceo-primary dark:text-liceo-gold font-black text-sm md:text-lg uppercase tracking-wider leading-tight">
-                        M13 Liceo Naval
+                    <h1 className="text-liceo-primary dark:text-[#5EE5F8] font-black text-sm md:text-md uppercase tracking-wider leading-tight">
+                        {tenantName}
                     </h1>
-                    <span className="text-gray-500 dark:text-gray-400 text-[10px] md:text-xs font-semibold tracking-wide uppercase">
-                        {t.nav.system}
-                    </span>
+                    
+                    {isStaff && categories.length > 0 ? (
+                        <select 
+                            value={selectedCategoryId} 
+                            onChange={handleCategoryChange}
+                            className="bg-transparent text-gray-500 dark:text-gray-400 text-[10px] md:text-xs font-bold tracking-wide uppercase focus:outline-none border-b border-transparent hover:border-gray-300 dark:hover:border-white/20 cursor-pointer mt-0.5"
+                        >
+                            <option value="All" className="bg-[#0B1526] text-white">Todas las Categorías</option>
+                            {categories.map((cat) => (
+                                <option key={cat.id} value={cat.id} className="bg-[#0B1526] text-white">
+                                    Categoría {cat.name}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <span className="text-gray-500 dark:text-gray-400 text-[10px] md:text-xs font-semibold tracking-wide uppercase">
+                            {t.nav.system}
+                        </span>
+                    )}
                 </div>
             </div>
 
             {/* Middle Nav for Desktop Only */}
             <nav className="hidden lg:flex items-center gap-6 xl:gap-8 ml-10">
-                <Link href={`${basePath}`} className={`${isActive(`${basePath}`) ? 'text-liceo-primary dark:text-liceo-gold border-b-2 border-liceo-primary dark:border-liceo-gold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.dashboard}</Link>
+                <Link href={`${basePath}`} className={`${isActive(`${basePath}`) ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.dashboard}</Link>
                 {isStaff && (
                     <>
-                        <Link href="/dashboard/players" className={`${isActive('/dashboard/players') ? 'text-liceo-primary dark:text-liceo-gold border-b-2 border-liceo-primary dark:border-liceo-gold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.roster}</Link>
-                        <Link href="/dashboard/teams" className={`${isActive('/dashboard/teams') ? 'text-liceo-primary dark:text-liceo-gold border-b-2 border-liceo-primary dark:border-liceo-gold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.teams}</Link>
-                        <Link href="/dashboard/training" className={`${isActive('/dashboard/training') ? 'text-liceo-primary dark:text-liceo-gold border-b-2 border-liceo-primary dark:border-liceo-gold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.training}</Link>
-                        <Link href="/dashboard/matches" className={`${isActive('/dashboard/matches') ? 'text-liceo-primary dark:text-liceo-gold border-b-2 border-liceo-primary dark:border-liceo-gold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.matches}</Link>
+                        <Link href="/dashboard/players" className={`${isActive('/dashboard/players') ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.roster}</Link>
+                        <Link href="/dashboard/teams" className={`${isActive('/dashboard/teams') ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.teams}</Link>
+                        <Link href="/dashboard/training" className={`${isActive('/dashboard/training') ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.training}</Link>
+                        <Link href="/dashboard/matches" className={`${isActive('/dashboard/matches') ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.matches}</Link>
+                        {(userRole === 'Admin' || userRole === 'Administrador') && (
+                            <Link href="/dashboard/admin" className={`${isActive('/dashboard/admin') ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>Administración</Link>
+                        )}
                     </>
                 )}
-                <Link href={isStaff ? "/dashboard/billboard" : "/dashboard/parent/billboard"} className={`${isActive(isStaff ? "/dashboard/billboard" : "/dashboard/parent/billboard") ? 'text-liceo-primary dark:text-liceo-gold border-b-2 border-liceo-primary dark:border-liceo-gold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.billboard}</Link>
+                <Link href={isStaff ? "/dashboard/billboard" : "/dashboard/parent/billboard"} className={`${isActive(isStaff ? "/dashboard/billboard" : "/dashboard/parent/billboard") ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.billboard}</Link>
                 {!isStaff && (
-                    <Link href="/dashboard/parent/calendar" className={`${isActive("/dashboard/parent/calendar") ? 'text-liceo-primary dark:text-liceo-gold border-b-2 border-liceo-primary dark:border-liceo-gold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.calendar}</Link>
+                    <Link href="/dashboard/parent/calendar" className={`${isActive("/dashboard/parent/calendar") ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.calendar}</Link>
                 )}
             </nav>
 
@@ -126,9 +238,25 @@ function DashboardHeader() {
 function DashboardBottomNav() {
     const pathname = usePathname()
     const { t } = useLang()
+    const supabase = createClient()
+    const [userRole, setUserRole] = useState<string | null>(null)
 
     const basePath = pathname.includes('/dashboard/parent') ? '/dashboard/parent' : '/dashboard/staff'
     const isStaff = basePath === '/dashboard/staff'
+
+    useEffect(() => {
+        const fetchRole = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single()
+            if (profile) setUserRole(profile.role)
+        }
+        if (isStaff) fetchRole()
+    }, [isStaff, supabase])
 
     const navItems = isStaff ? [
         { name: t.nav.dashboard, href: '/dashboard/staff', icon: LayoutDashboard },
@@ -136,7 +264,7 @@ function DashboardBottomNav() {
         { name: t.nav.teams, href: '/dashboard/teams', icon: Shield },
         { name: t.nav.training, href: '/dashboard/training', icon: Dumbbell },
         { name: t.nav.matches, href: '/dashboard/matches', icon: Trophy },
-        { name: t.nav.billboard, href: '/dashboard/billboard', icon: Megaphone }
+        ...(userRole === 'Admin' || userRole === 'Administrador' ? [{ name: 'Admin', href: '/dashboard/admin', icon: Shield }] : [{ name: t.nav.billboard, href: '/dashboard/billboard', icon: Megaphone }])
     ] : [
         { name: t.nav.dashboard, href: '/dashboard/parent', icon: LayoutDashboard },
         { name: t.nav.calendar, href: '/dashboard/parent/calendar', icon: Calendar },
@@ -151,7 +279,7 @@ function DashboardBottomNav() {
                     <Link
                         key={item.href}
                         href={item.href}
-                        className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 ${isActive ? 'text-liceo-primary dark:text-liceo-gold' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'} transition-colors`}
+                        className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 ${isActive ? 'text-liceo-primary dark:text-[#5EE5F8]' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'} transition-colors`}
                     >
                         <item.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                         <span className="text-[9px] sm:text-[10px] font-semibold uppercase flex-shrink-0 text-center">{item.name}</span>

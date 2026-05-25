@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { isStaff } from '@/utils/roles'
+import { cookies } from 'next/headers'
 import DashboardClient from './dashboard-client'
 
 export default async function DashboardPage() {
@@ -31,9 +32,24 @@ export default async function DashboardPage() {
         redirect('/login?error=Cuenta inactiva')
     }
 
-    const { data: players } = await supabase.from('players').select('*, skills(*)').neq('status', 'Abandonado')
-    const { data: events } = await supabase.from('events').select('*')
+    const cookieStore = await cookies()
+    const selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+
+    let playersQuery = supabase.from('players').select('*, skills(*)').neq('status', 'Abandonado')
+    let eventsQuery = supabase.from('events').select('*')
+
+    if (selectedCategoryId !== 'All') {
+        playersQuery = playersQuery.eq('category_id', selectedCategoryId)
+        eventsQuery = eventsQuery.eq('category_id', selectedCategoryId)
+    }
+
+    const { data: players } = await playersQuery
+    const { data: events } = await eventsQuery
     const { data: attendance } = await supabase.from('event_attendance').select('*')
+
+    // Filter attendance to match only active category events
+    const activeEventIds = (events || []).map((e: any) => e.id)
+    const filteredAttendance = (attendance || []).filter((a: any) => activeEventIds.includes(a.event_id))
 
     const playersWithLatestSkills = (players || []).map((p: any) => {
         const sortedSkills = p.skills?.sort((a: any, b: any) => new Date(b.date_logged || 0).getTime() - new Date(a.date_logged || 0).getTime())
@@ -44,6 +60,6 @@ export default async function DashboardPage() {
         }
     })
 
-    return <DashboardClient players={playersWithLatestSkills} events={events || []} attendance={attendance || []} />
+    return <DashboardClient players={playersWithLatestSkills} events={events || []} attendance={filteredAttendance || []} />
 }
 
