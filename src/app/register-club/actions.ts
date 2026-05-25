@@ -52,12 +52,21 @@ export async function registerNewClub(formData: FormData) {
 
         const adminClient = createAdminClient()
 
+        const subscriptionPlan = (formData.get('subscriptionPlan') as string) || 'Free'
+        const maxUsers = subscriptionPlan === 'Basic' ? 20 : subscriptionPlan === 'Premium' ? 100 : 15
+        const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+
         // 2. Create the Tenant
         const { data: tenant, error: tenantError } = await adminClient
             .from('tenants')
             .insert({
                 name: clubName,
-                logo_url: logoUrl || null
+                logo_url: logoUrl || null,
+                subscription_tier: subscriptionPlan,
+                subscription_status: 'active',
+                trial_ends_at: trialEndsAt,
+                max_users: maxUsers,
+                is_active: true
             })
             .select()
             .single()

