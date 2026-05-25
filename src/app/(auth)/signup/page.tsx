@@ -36,11 +36,19 @@ export default function SignupPage() {
                     </div>
                 </div>
 
-                <div className="text-center text-sm text-gray-400 mt-8 relative z-10">
-                    ¿Ya tenés una cuenta?{' '}
-                    <Link href="/login" className="text-liceo-gold font-bold hover:underline transition-colors uppercase tracking-wider text-[10px]">
-                        Ingresá acá
-                    </Link>
+                <div className="text-center text-sm text-gray-400 mt-8 relative z-10 space-y-2">
+                    <p>
+                        ¿Ya tenés una cuenta?{' '}
+                        <Link href="/login" className="text-liceo-gold font-bold hover:underline transition-colors uppercase tracking-wider text-[10px]">
+                            Ingresá acá
+                        </Link>
+                    </p>
+                    <p className="pt-4 border-t border-white/5">
+                        ¿Sos el administrador de un nuevo club?{' '}
+                        <Link href="/register-club" className="text-[#5EE5F8] font-bold hover:underline transition-colors uppercase tracking-wider text-[10px]">
+                            Registrá tu Club
+                        </Link>
+                    </p>
                 </div>
             </div>
         </div>
