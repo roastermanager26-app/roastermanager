@@ -19,11 +19,11 @@ export default async function Home() {
             <header className="fixed top-0 w-full z-50 bg-[#0B1526]/80 backdrop-blur-md border-b border-white/5">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#111f38] flex items-center justify-center border border-white/10">
-                            <Image src="/logo-cglnm-liceo-naval.png" alt="Logo" width={28} height={28} className="object-contain drop-shadow-[0_0_8px_rgba(94,229,248,0.5)]" />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#111f38] to-[#0B1526] flex items-center justify-center border border-[#5EE5F8]/30 shadow-[0_0_15px_rgba(94,229,248,0.25)]">
+                            <Trophy className="w-5 h-5 text-[#5EE5F8] drop-shadow-[0_0_8px_rgba(94,229,248,0.5)]" />
                         </div>
                         <span className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-                            Roastr<span className="text-[#5EE5F8]">Manager</span>
+                            Roaster<span className="text-[#5EE5F8]">Manager</span>
                         </span>
                     </div>
                     <div className="flex items-center gap-4">
@@ -99,7 +99,7 @@ export default async function Home() {
             
             <footer className="border-t border-white/10 mt-20 bg-[#0B1526]/50">
                 <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <p className="text-gray-500 text-sm font-medium">© 2026 RoastrManager. Todos los derechos reservados.</p>
+                    <p className="text-gray-500 text-sm font-medium">© 2026 RoasterManager. Todos los derechos reservados.</p>
                     <div className="flex gap-4">
                         <a href="#" className="text-gray-500 hover:text-white transition-colors"><Shield className="w-5 h-5" /></a>
                     </div>
