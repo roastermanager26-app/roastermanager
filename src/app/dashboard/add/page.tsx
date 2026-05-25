@@ -16,6 +16,8 @@ export default function AddPlayerPage() {
     const [firstName, setFirstName] = useState('')
     const [lastName, setLastName] = useState('')
     const [nickname, setNickname] = useState('')
+    const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
     const [loading, setLoading] = useState(true) // Start loading to check role
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
@@ -31,7 +33,7 @@ export default function AddPlayerPage() {
 
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('role')
+                .select('role, tenant_id')
                 .eq('id', user.id)
                 .single()
 
@@ -41,6 +43,31 @@ export default function AddPlayerPage() {
                 router.push('/dashboard/parent')
             } else {
                 setIsStaffValidated(true)
+                
+                // Fetch categories
+                if (profile?.tenant_id) {
+                    const { data: cats } = await supabase
+                        .from('categories')
+                        .select('id, name')
+                        .eq('tenant_id', profile.tenant_id)
+                        .order('name', { ascending: true })
+                    
+                    if (cats) {
+                        setCategories(cats)
+                        
+                        // Check if there is an active category in cookie
+                        const cookies = typeof document !== 'undefined' ? document.cookie.split('; ') : []
+                        const savedCatCookie = cookies.find(row => row.startsWith('roaster_selected_category_id='))
+                        const savedCatId = savedCatCookie ? savedCatCookie.split('=')[1] : null
+                        
+                        if (savedCatId && savedCatId !== 'All' && cats.some((c: any) => c.id === savedCatId)) {
+                            setSelectedCategoryId(savedCatId)
+                        } else if (cats.length > 0) {
+                            setSelectedCategoryId(cats[0].id)
+                        }
+                    }
+                }
+                
                 setLoading(false)
             }
         }
@@ -72,7 +99,8 @@ export default function AddPlayerPage() {
             .insert({
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
-                nickname: nickname.trim() || null
+                nickname: nickname.trim() || null,
+                category_id: selectedCategoryId || null
             })
 
         setLoading(false)
@@ -149,15 +177,31 @@ export default function AddPlayerPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-1">{t.add.nickname}</label>
-                            <input
-                                type="text"
-                                value={nickname}
-                                onChange={(e) => setNickname(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1526]/50 focus:outline-none focus:ring-2 focus:ring-liceo-accent transition-all text-sm font-medium text-gray-900 dark:text-white"
-                                placeholder="Ej: Marian (opcional)"
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-1">{t.add.nickname}</label>
+                                <input
+                                    type="text"
+                                    value={nickname}
+                                    onChange={(e) => setNickname(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1526]/50 focus:outline-none focus:ring-2 focus:ring-liceo-accent transition-all text-sm font-medium text-gray-900 dark:text-white"
+                                    placeholder="Ej: Marian (opcional)"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-1">Categoría</label>
+                                <select
+                                    value={selectedCategoryId}
+                                    onChange={(e) => setSelectedCategoryId(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1526]/50 focus:outline-none focus:ring-2 focus:ring-liceo-accent transition-all text-sm font-medium text-gray-900 dark:text-white cursor-pointer"
+                                >
+                                    {categories.map((cat) => (
+                                        <option key={cat.id} value={cat.id} className="bg-white dark:bg-[#0B1526] text-gray-900 dark:text-white">
+                                            {cat.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         <div className="pt-4 border-t border-gray-100 dark:border-white/5">
