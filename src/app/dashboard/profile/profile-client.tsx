@@ -63,6 +63,23 @@ export default function ProfileClient({
     // Staff Management State
     const [staff, setStaff] = useState(allProfiles)
     const [linkages, setLinkages] = useState(allLinkages)
+    const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (currentProfile?.tenant_id) {
+                const { data } = await supabase
+                    .from('categories')
+                    .select('id, name')
+                    .eq('tenant_id', currentProfile.tenant_id)
+                    .order('name', { ascending: true })
+                if (data) {
+                    setCategories(data)
+                }
+            }
+        }
+        fetchCategories()
+    }, [currentProfile?.tenant_id, supabase])
 
     // UI Modals State
     const [isCreatingStaff, setIsCreatingStaff] = useState(false)
@@ -72,8 +89,8 @@ export default function ProfileClient({
     const [isDeleting, setIsDeleting] = useState<string | null>(null) // ID of member being deleted
 
     // Form States
-    const [newStaff, setNewStaff] = useState({ full_name: '', role: 'Staff', phone: '', is_parent: false })
-    const [activateForm, setActivateForm] = useState({ email: '', role: 'Staff', password: '', is_parent: false, selectedChildren: [] as string[] })
+    const [newStaff, setNewStaff] = useState({ full_name: '', role: 'Staff', phone: '', is_parent: false, category_id: '' })
+    const [activateForm, setActivateForm] = useState({ email: '', role: 'Staff', password: '', is_parent: false, category_id: '', selectedChildren: [] as string[] })
 
     const [isSavingStaff, setIsSavingStaff] = useState(false)
     const [isActivating, setIsActivating] = useState(false)
@@ -149,12 +166,20 @@ export default function ProfileClient({
         e.preventDefault()
         setIsSavingStaff(true)
 
-        const { data, error } = await supabase.from('profiles').insert([newStaff]).select()
+        const payload = {
+            full_name: newStaff.full_name,
+            role: newStaff.role,
+            phone: newStaff.phone || null,
+            is_parent: newStaff.is_parent,
+            tenant_id: currentProfile?.tenant_id,
+            category_id: newStaff.category_id || null
+        }
+        const { data, error } = await supabase.from('profiles').insert([payload]).select()
 
         if (!error && data) {
             setStaff([data[0], ...staff])
             setIsCreatingStaff(false)
-            setNewStaff({ full_name: '', role: 'Staff', phone: '', is_parent: false })
+            setNewStaff({ full_name: '', role: 'Staff', phone: '', is_parent: false, category_id: '' })
             showSuccessToast('Staff Añadido', 'El perfil mock fue creado exitosamente.')
         } else {
             showErrorToast('Error', error?.message || 'No se pudo crear el perfil.')
@@ -183,6 +208,7 @@ export default function ProfileClient({
             full_name: isActivatingUser.full_name,
             phone: isActivatingUser.phone,
             is_parent: activateForm.is_parent,
+            category_id: isActivatingUser.category_id || null,
             selectedChildren: activateForm.selectedChildren
         })
 
@@ -222,11 +248,13 @@ export default function ProfileClient({
             role: isEditingUser.role,
             phone: isEditingUser.phone,
             is_parent: isEditingUser.is_parent,
-            is_active: isEditingUser.is_active
+            is_active: isEditingUser.is_active,
+            category_id: isEditingUser.category_id || null
         })
 
         if (!result.error) {
             showSuccessToast('Usuario Actualizado', 'Los cambios fueron guardados.')
+            setStaff(prev => prev.map(m => m.id === isEditingUser.id ? { ...m, ...isEditingUser } : m))
             setIsEditingUser(null)
         } else {
             showErrorToast('Error', result.error)
@@ -240,11 +268,13 @@ export default function ProfileClient({
         const result = await deleteUserAdminAction(userId)
         if (!result.error) {
             showSuccessToast('Usuario Eliminado', 'El perfil ha sido removido.')
+            setStaff(prev => prev.filter(m => m.id !== userId))
         } else {
             showErrorToast('Error', result.error)
         }
         setIsDeleting(null)
     }
+
 
     return (
         <div className="p-6 md:p-10 min-h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-liceo-primary/30 via-background to-background dark:from-liceo-primary/20 dark:via-background dark:to-background text-foreground transition-colors space-y-8 max-w-7xl mx-auto font-sans">
@@ -406,6 +436,7 @@ export default function ProfileClient({
                                 const isMock = !member.is_active
                                 const isCurrentUser = member.id === currentUser.id
                                 const childrenCount = linkages.filter(l => l.parent_profile_id === member.id).length
+                                const catName = categories.find(c => c.id === member.category_id)?.name
 
                                 return (
                                     <div key={member.id} className="bg-white dark:bg-[#102035] p-5 rounded-3xl border border-gray-100 dark:border-white/5 flex flex-col gap-4 shadow-sm group hover:border-liceo-primary/30 dark:hover:border-[#5EE5F8]/30 transition-all">
@@ -423,7 +454,9 @@ export default function ProfileClient({
                                                         <span className="text-[8px] bg-amber-500 text-white font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">MOCK</span>
                                                     )}
                                                 </div>
-                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-0.5">{member.role || 'Staff'}</p>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                                                    {member.role || 'Staff'} {catName ? `• ${catName}` : '• General'}
+                                                </p>
                                             </div>
 
                                             {isAdmin && (
@@ -507,7 +540,7 @@ export default function ProfileClient({
                                     onClick={() => {
                                         setIsActivatingUser(null)
                                         setTempPassword('')
-                                        setActivateForm({ email: '', role: 'Staff', password: '', is_parent: false, selectedChildren: [] })
+                                        setActivateForm({ email: '', role: 'Staff', password: '', is_parent: false, category_id: '', selectedChildren: [] })
                                     }}
                                     className="w-full py-4 bg-liceo-primary dark:bg-white text-white dark:text-[#0B1526] rounded-2xl font-black uppercase tracking-widest shadow-lg"
                                 >
@@ -727,6 +760,22 @@ export default function ProfileClient({
                                     </div>
                                 </div>
 
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1 mb-2 block">Categoría / División (Opcional)</label>
+                                    <select
+                                        value={isEditingUser.category_id || ''}
+                                        onChange={e => setIsEditingUser({ ...isEditingUser, category_id: e.target.value })}
+                                        className="w-full px-5 py-4 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1526] focus:outline-none focus:ring-2 focus:ring-liceo-primary font-bold dark:text-white text-sm cursor-pointer"
+                                    >
+                                        <option value="" className="bg-white dark:bg-[#0B1526] text-gray-900 dark:text-white">General / Todas las Categorías</option>
+                                        {categories.map(cat => (
+                                            <option key={cat.id} value={cat.id} className="bg-white dark:bg-[#0B1526] text-gray-900 dark:text-white">
+                                                {cat.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
                                 <div className="flex items-center justify-between bg-[#0B1526]/50 p-6 rounded-[2rem] border border-white/5">
                                     <div className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isEditingUser.is_parent ? 'bg-[#5EE5F8] text-[#0B1526]' : 'bg-white/5 text-gray-500'}`}>
@@ -799,6 +848,21 @@ export default function ProfileClient({
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Rol / Cargo</label>
                                 <select value={newStaff.role} onChange={e => setNewStaff({ ...newStaff, role: e.target.value })} className="w-full px-5 py-4 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1526] focus:outline-none focus:ring-2 focus:ring-liceo-primary font-bold dark:text-white text-sm appearance-none">
                                     {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Categoría / División (Opcional)</label>
+                                <select
+                                    value={newStaff.category_id}
+                                    onChange={e => setNewStaff({ ...newStaff, category_id: e.target.value })}
+                                    className="w-full px-5 py-4 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1526] focus:outline-none focus:ring-2 focus:ring-liceo-primary font-bold dark:text-white text-sm cursor-pointer"
+                                >
+                                    <option value="" className="bg-white dark:bg-[#0B1526] text-gray-900 dark:text-white">General / Todas las Categorías</option>
+                                    {categories.map(cat => (
+                                        <option key={cat.id} value={cat.id} className="bg-white dark:bg-[#0B1526] text-gray-900 dark:text-white">
+                                            {cat.name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="flex items-center gap-3 bg-white/5 p-4 rounded-2xl border border-white/5">

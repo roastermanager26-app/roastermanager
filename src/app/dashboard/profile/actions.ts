@@ -12,6 +12,7 @@ export async function activateUserAction(formData: {
     full_name: string,
     phone: string,
     is_parent: boolean,
+    category_id?: string | null,
     selectedChildren: string[]
 }) {
     // Usamos el cliente de servidor para validar al admin que llama
@@ -80,6 +81,7 @@ export async function activateUserAction(formData: {
         role: formData.role,
         phone: formData.phone,
         is_parent: formData.is_parent,
+        category_id: formData.category_id || null,
         is_active: true,
         force_password_change: true
     }, { onConflict: 'id' })
@@ -142,7 +144,8 @@ export async function updateUserAdminAction(formData: {
     role: string,
     phone: string,
     is_parent: boolean,
-    is_active: boolean
+    is_active: boolean,
+    category_id?: string | null
 }) {
     const supabase = await createClient()
 
@@ -159,7 +162,8 @@ export async function updateUserAdminAction(formData: {
         role: formData.role,
         phone: formData.phone,
         is_parent: formData.is_parent,
-        is_active: formData.is_active
+        is_active: formData.is_active,
+        category_id: formData.category_id || null
     }).eq('id', formData.userId)
 
     if (profileError) return { error: profileError.message }
