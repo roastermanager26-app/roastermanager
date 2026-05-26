@@ -14,6 +14,12 @@ export default async function EventDetailPage(props: { params: Promise<{ id: str
         redirect('/login')
     }
 
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, category_id')
+        .eq('id', user.id)
+        .single()
+
     const { data: event, error: evErr } = await supabase
         .from('events')
         .select('*')
@@ -24,8 +30,12 @@ export default async function EventDetailPage(props: { params: Promise<{ id: str
         redirect('/dashboard/training')
     }
 
-    // Get all drills to use in planning
-    const { data: drills } = await supabase.from('drills').select('*').order('name')
+    // Get all drills to use in planning (restrcited to category or general)
+    let drillsQuery = supabase.from('drills').select('*').order('name')
+    if (profile?.category_id) {
+        drillsQuery = drillsQuery.or(`category_id.eq.${profile.category_id},category_id.is.null`)
+    }
+    const { data: drills } = await drillsQuery
 
     // Get plan slots
     const { data: planSlots } = await supabase
@@ -47,14 +57,22 @@ export default async function EventDetailPage(props: { params: Promise<{ id: str
         .eq('event_id', id)
         .order('created_at', { ascending: false })
 
-    // Get Players for attendance list
-    const { data: players } = await supabase.from('players').select('*').neq('status', 'Abandonado').order('last_name')
+    // Get Players for attendance list (restricted to category)
+    let playersQuery = supabase.from('players').select('*').neq('status', 'Abandonado').order('last_name')
+    if (profile?.category_id) {
+        playersQuery = playersQuery.eq('category_id', profile.category_id)
+    }
+    const { data: players } = await playersQuery
 
     // Get coaches
     const { data: coaches } = await supabase.from('profiles').select('*')
 
-    // Get teams
-    const { data: teams } = await supabase.from('teams').select('*').order('name')
+    // Get teams (restricted to category if present)
+    let teamsQuery = supabase.from('teams').select('*').order('name')
+    if (profile?.category_id) {
+        teamsQuery = teamsQuery.eq('category_id', profile.category_id)
+    }
+    const { data: teams } = await teamsQuery
 
     return (
         <EventDetailClient

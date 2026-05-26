@@ -31,6 +31,7 @@ type Profile = {
     phone: string | null
     is_active: boolean
     is_parent: boolean
+    category_id?: string | null
     player_parents?: { player_id: string }[]
 }
 
@@ -88,6 +89,7 @@ export default function AdminClient({
         role: 'Entrenador',
         phone: '',
         is_parent: false,
+        category_id: '',
         selectedChildren: [] as string[]
     })
 
@@ -98,6 +100,7 @@ export default function AdminClient({
         phone: '',
         is_active: true,
         is_parent: false,
+        category_id: '',
         selectedChildren: [] as string[]
     })
 
@@ -175,6 +178,7 @@ export default function AdminClient({
             role: userForm.role,
             phone: userForm.phone,
             is_parent: userForm.is_parent,
+            category_id: userForm.category_id || null,
             selectedChildren: userForm.selectedChildren
         })
         setIsSaving(false)
@@ -196,6 +200,7 @@ export default function AdminClient({
                 role: 'Entrenador',
                 phone: '',
                 is_parent: false,
+                category_id: '',
                 selectedChildren: []
             })
             setIsCreatingUser(false)
@@ -219,6 +224,7 @@ export default function AdminClient({
             phone: editUserForm.phone,
             is_active: editUserForm.is_active,
             is_parent: editUserForm.is_parent,
+            category_id: editUserForm.category_id || null,
             selectedChildren: editUserForm.selectedChildren
         })
         setIsSaving(false)
@@ -290,6 +296,7 @@ export default function AdminClient({
                 phone: isEditingUser.phone || '',
                 is_active: isEditingUser.is_active,
                 is_parent: isEditingUser.is_parent,
+                category_id: isEditingUser.category_id || '',
                 selectedChildren: childIds
             })
         }
@@ -702,6 +709,22 @@ export default function AdminClient({
                                     </div>
 
                                     <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Categoría / División (Opcional)</label>
+                                        <select
+                                            value={userForm.category_id}
+                                            onChange={e => setUserForm({ ...userForm, category_id: e.target.value })}
+                                            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1526] focus:outline-none focus:ring-2 focus:ring-liceo-primary font-bold dark:text-white text-sm appearance-none cursor-pointer"
+                                        >
+                                            <option value="">General / Todas las Categorías</option>
+                                            {categories.map(cat => (
+                                                <option key={cat.id} value={cat.id}>
+                                                    {cat.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Teléfono (Opcional)</label>
                                         <input
                                             value={userForm.phone}
@@ -876,6 +899,22 @@ export default function AdminClient({
                                             <option value="Preparador Físico">Preparador Físico</option>
                                             <option value="Admin">Administrador (Admin)</option>
                                             <option value="Padres">Padre / Familiar</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Categoría / División (Opcional)</label>
+                                        <select
+                                            value={editUserForm.category_id}
+                                            onChange={e => setEditUserForm({ ...editUserForm, category_id: e.target.value })}
+                                            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1526] focus:outline-none focus:ring-2 focus:ring-liceo-primary font-bold dark:text-white text-sm appearance-none cursor-pointer"
+                                        >
+                                            <option value="">General / Todas las Categorías</option>
+                                            {categories.map(cat => (
+                                                <option key={cat.id} value={cat.id}>
+                                                    {cat.name}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
 

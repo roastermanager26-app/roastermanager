@@ -74,7 +74,7 @@ function DashboardHeader() {
             // Fetch profile
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('tenant_id, role')
+                .select('tenant_id, role, category_id')
                 .eq('id', user.id)
                 .single()
 
@@ -100,6 +100,7 @@ function DashboardHeader() {
                     .select('id, name')
                     .eq('tenant_id', profile.tenant_id)
 
+                let finalCats = cats || []
                 if (!cats || cats.length === 0) {
                     // Create default 'General' category for new clubs
                     const { data: newCat } = await supabase
@@ -108,19 +109,25 @@ function DashboardHeader() {
                         .select()
                         .single()
                     if (newCat) {
-                        setCategories([newCat])
+                        finalCats = [newCat]
                     }
-                } else {
-                    setCategories(cats)
                 }
-            }
 
-            // Restore active category from cookie
-            const savedCat = getCookie('roaster_selected_category_id')
-            if (savedCat) {
-                setSelectedCategoryId(savedCat)
-            } else {
-                setSelectedCategoryId('All')
+                if (profile.category_id) {
+                    const restrictedCats = finalCats.filter((c: any) => c.id === profile.category_id)
+                    setCategories(restrictedCats)
+                    setSelectedCategoryId(profile.category_id)
+                    setCookie('roaster_selected_category_id', profile.category_id)
+                } else {
+                    setCategories(finalCats)
+                    // Restore active category from cookie
+                    const savedCat = getCookie('roaster_selected_category_id')
+                    if (savedCat) {
+                        setSelectedCategoryId(savedCat)
+                    } else {
+                        setSelectedCategoryId('All')
+                    }
+                }
             }
         }
 

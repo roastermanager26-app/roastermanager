@@ -15,7 +15,7 @@ export default async function TrainingPage() {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, category_id')
         .eq('id', user.id)
         .single()
 
@@ -27,7 +27,11 @@ export default async function TrainingPage() {
     }
 
     const cookieStore = await cookies()
-    const selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+    let selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+
+    if (profile?.category_id) {
+        selectedCategoryId = profile.category_id
+    }
 
     // First attempt to fetch with event_type filter (new schema)
     let eventsQuery = supabase
@@ -59,10 +63,16 @@ export default async function TrainingPage() {
     }
 
 
-    const { data: drills, error: drErr } = await supabase
+    let drillsQuery = supabase
         .from('drills')
         .select('*')
         .order('name', { ascending: true })
+
+    if (profile?.category_id) {
+        drillsQuery = drillsQuery.or(`category_id.eq.${profile.category_id},category_id.is.null`)
+    }
+
+    const { data: drills, error: drErr } = await drillsQuery
 
     const { data: profiles, error: profErr } = await supabase
         .from('profiles')

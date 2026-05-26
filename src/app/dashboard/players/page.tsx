@@ -14,7 +14,7 @@ export default async function PlayersPage() {
     // Check user role
     const { data: profile } = await supabase
         .from('profiles')
-        .select('role, tenant_id')
+        .select('role, tenant_id, category_id')
         .eq('id', user.id)
         .single()
 
@@ -38,7 +38,11 @@ export default async function PlayersPage() {
     }
 
     const cookieStore = await cookies()
-    const selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+    let selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+
+    if (profile?.category_id) {
+        selectedCategoryId = profile.category_id
+    }
 
     let categoryName = 'Todas las Categorías'
     if (selectedCategoryId !== 'All') {

@@ -14,7 +14,7 @@ export default async function DashboardPage() {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('role, is_parent, is_active, force_password_change, tenant_id')
+        .select('role, is_parent, is_active, force_password_change, tenant_id, category_id')
         .eq('id', user.id)
         .single()
 
@@ -45,7 +45,11 @@ export default async function DashboardPage() {
     }
 
     const cookieStore = await cookies()
-    const selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+    let selectedCategoryId = cookieStore.get('roaster_selected_category_id')?.value || 'All'
+
+    if (profile?.category_id) {
+        selectedCategoryId = profile.category_id
+    }
 
     let categoryName = 'Todas las Categorías'
     if (selectedCategoryId !== 'All') {

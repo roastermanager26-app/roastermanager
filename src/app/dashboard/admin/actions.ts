@@ -87,6 +87,7 @@ export async function createClubUser(data: {
     role: string
     phone?: string
     is_parent: boolean
+    category_id?: string | null
     selectedChildren?: string[]
 }) {
     try {
@@ -123,6 +124,7 @@ export async function createClubUser(data: {
             .upsert({
                 id: newUserId,
                 tenant_id: adminProfile.tenant_id,
+                category_id: data.category_id || null,
                 full_name: data.full_name.trim(),
                 role: data.role,
                 phone: data.phone?.trim() || null,
@@ -169,6 +171,7 @@ export async function updateClubUser(data: {
     phone?: string
     is_active: boolean
     is_parent: boolean
+    category_id?: string | null
     selectedChildren?: string[]
 }) {
     try {
@@ -182,7 +185,8 @@ export async function updateClubUser(data: {
                 role: data.role,
                 phone: data.phone?.trim() || null,
                 is_active: data.is_active,
-                is_parent: data.is_parent
+                is_parent: data.is_parent,
+                category_id: data.category_id || null
             })
             .eq('id', data.id)
             .eq('tenant_id', adminProfile.tenant_id) // ensure they belong to same tenant
