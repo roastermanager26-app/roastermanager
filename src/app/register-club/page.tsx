@@ -115,7 +115,7 @@ export default function RegisterClubPage() {
                                         <h3 className="text-xl font-bold">Plan Basic</h3>
                                         <p className="text-gray-400 text-xs mt-1">Para entrenadores de una división.</p>
                                     </div>
-                                    <div className="text-2xl font-black">$15 <span className="text-xs font-normal text-gray-400">/ mes</span></div>
+                                    <div className="text-2xl font-black">$49,99 USD <span className="text-xs font-normal text-gray-400">/ mes + IVA</span></div>
                                     <ul className="space-y-2 text-xs text-gray-300 border-t border-white/5 pt-4">
                                         <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-[#5EE5F8]" /> Hasta 20 usuarios</li>
                                         <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-[#5EE5F8]" /> Reporte de presentismo</li>
@@ -145,7 +145,7 @@ export default function RegisterClubPage() {
                                         <h3 className="text-xl font-bold">Plan Premium</h3>
                                         <p className="text-gray-400 text-xs mt-1">El entorno definitivo para tu club.</p>
                                     </div>
-                                    <div className="text-2xl font-black">$45 <span className="text-xs font-normal text-gray-400">/ mes</span></div>
+                                    <div className="text-2xl font-black">$99,99 USD <span className="text-xs font-normal text-gray-400">/ mes + IVA</span></div>
                                     <ul className="space-y-2 text-xs text-gray-300 border-t border-[#5EE5F8]/10 pt-4">
                                         <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-[#5EE5F8]" /> Hasta 100 usuarios</li>
                                         <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-[#5EE5F8]" /> Múltiples Divisiones</li>
