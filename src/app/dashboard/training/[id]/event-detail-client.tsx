@@ -2,12 +2,14 @@
 
 import { useState, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { ChevronLeft, Save, Plus, X, Search, Settings, Loader2, CalendarDays, BookOpen, Clock, Users, Shield, CheckCircle2, UserCheck, MessageSquare, Mic, Droplet, Coffee, Share2, Copy, Youtube, Star, Trophy, ArrowUp, ArrowDown } from 'lucide-react'
+import { ChevronLeft, Save, Plus, X, Search, Settings, Loader2, CalendarDays, BookOpen, Clock, Users, Shield, CheckCircle2, UserCheck, MessageSquare, Mic, Droplet, Coffee, Share2, Copy, Youtube, Star, Trophy, ArrowUp, ArrowDown, Trash2 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { showSuccessToast, showErrorToast } from '@/utils/toast'
 
 export default function EventDetailClient({ event, drills, initialSlots, initialAttendance, initialNotes, players, coaches, teams, currentUser }: any) {
     const supabase = createClient()
+    const router = useRouter()
 
     const [activeTab, setActiveTab] = useState<'plan' | 'attendance' | 'notes'>(event.event_type === 'Partido' ? 'attendance' : 'plan')
     const [eventStatus, setEventStatus] = useState(event.status)
@@ -17,6 +19,8 @@ export default function EventDetailClient({ event, drills, initialSlots, initial
     const [slotToDelete, setSlotToDelete] = useState<string | null>(null)
     const [isFinishingEvent, setIsFinishingEvent] = useState(false)
     const [isCancellingEvent, setIsCancellingEvent] = useState(false)
+    const [isDeletingEvent, setIsDeletingEvent] = useState(false)
+    const [deleteConfirmText, setDeleteConfirmText] = useState('')
     const [isSharing, setIsSharing] = useState(false)
     const [shareText, setShareText] = useState('')
     const [newSlot, setNewSlot] = useState({ slot_type: 'drill', drill_id: '', custom_title: 'Hidratación', duration_minutes: 15, division_criteria: '', coaches_assigned: [] as string[], teams_level_1: [] as string[], teams_level_2: [] as string[] })
@@ -396,6 +400,25 @@ export default function EventDetailClient({ event, drills, initialSlots, initial
         }
     }
 
+    const confirmDeleteEvent = async () => {
+        if (deleteConfirmText !== 'Borrar' || ['Completado', 'Cancelado'].includes(eventStatus)) return
+
+        // Delete child slots to ensure foreign key integrity
+        await supabase.from('event_plan_slots').delete().eq('event_id', event.id)
+        
+        // Delete the main event
+        const { error } = await supabase.from('events').delete().eq('id', event.id)
+
+        if (!error) {
+            showSuccessToast('Eliminado', 'El entrenamiento ha sido borrado de forma permanente.')
+            setIsDeletingEvent(false)
+            setDeleteConfirmText('')
+            router.push('/dashboard/training')
+        } else {
+            showErrorToast('Error', 'No se pudo borrar el entrenamiento.')
+        }
+    }
+
     const handleShareWhatsApp = () => {
         let msg = ''
         if (event.event_type === 'Partido') {
@@ -562,7 +585,10 @@ Personalizar el trato con cada jugador.
                 </div>
                 {eventStatus !== 'Completado' && eventStatus !== 'Cancelado' && (
                     <div className="flex gap-2 self-end md:self-auto">
-                        <button onClick={handleCancelEvent} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm text-sm">
+                        <button onClick={() => setIsDeletingEvent(true)} className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm text-sm" title="Eliminar definitivamente este evento">
+                            <Trash2 className="w-5 h-5" /> Borrar
+                        </button>
+                        <button onClick={handleCancelEvent} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm text-sm" title="Marcar como cancelado (no se elimina)">
                             <X className="w-5 h-5" /> Cancelar
                         </button>
                         <button onClick={handleFinishEvent} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm text-sm">
@@ -1215,6 +1241,54 @@ Personalizar el trato con cada jugador.
                             </button>
                             <button onClick={confirmCancelEvent} className="flex-1 py-3 rounded-xl font-bold bg-white text-red-600 hover:opacity-90 transition-opacity shadow-lg shadow-black/20">
                                 Sí, Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* DELETE EVENT MODAL */}
+            {isDeletingEvent && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-[#0E1B30] border border-red-500/30 w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 text-center text-white">
+                        <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl border border-red-500/20">
+                            <Trash2 className="w-8 h-8 mx-auto" />
+                        </div>
+                        <h2 className="text-2xl font-black mb-2 text-red-500">¿Borrar Entrenamiento?</h2>
+                        <p className="text-sm font-bold text-gray-400 mb-6">
+                            Esta acción eliminará de forma permanente el entrenamiento y toda su planificación de la base de datos. Esto no se puede deshacer.
+                        </p>
+                        
+                        <div className="mb-6 bg-red-500/5 border border-red-500/15 rounded-xl p-4 text-left">
+                            <label className="block text-[10px] font-black text-red-400 uppercase tracking-widest mb-2 text-center">
+                                Escribe "Borrar" para confirmar
+                            </label>
+                            <input
+                                type="text"
+                                value={deleteConfirmText}
+                                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                className="w-full px-4 py-3 bg-[#0B1526] border border-red-500/30 rounded-xl text-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 font-bold text-sm text-center"
+                                placeholder='Borrar'
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => { setIsDeletingEvent(false); setDeleteConfirmText(''); }} 
+                                className="flex-1 py-3 rounded-xl font-bold bg-white/5 hover:bg-white/10 transition-colors"
+                            >
+                                Volver
+                            </button>
+                            <button 
+                                onClick={confirmDeleteEvent} 
+                                disabled={deleteConfirmText !== 'Borrar'}
+                                className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-lg ${
+                                    deleteConfirmText === 'Borrar'
+                                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/10 cursor-pointer'
+                                        : 'bg-red-500/25 text-white/50 cursor-not-allowed'
+                                }`}
+                            >
+                                Borrar definitivamente
                             </button>
                         </div>
                     </div>
