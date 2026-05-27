@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { uploadExternalLogoToBucket } from '@/utils/logo-uploader'
 
 // Helper to create an admin client with service role key to bypass limits/RLS securely
 function getAdminClient() {
@@ -266,11 +267,19 @@ export async function updateClubMetadata(name: string, logoUrl?: string) {
             return { error: 'El nombre de la institución es obligatorio' }
         }
 
+        let finalLogoUrl = logoUrl?.trim() || null
+        if (finalLogoUrl && profile.tenant_id) {
+            const bucketLogoUrl = await uploadExternalLogoToBucket(finalLogoUrl, profile.tenant_id)
+            if (bucketLogoUrl) {
+                finalLogoUrl = bucketLogoUrl
+            }
+        }
+
         const { error } = await supabase
             .from('tenants')
             .update({
                 name: name.trim(),
-                logo_url: logoUrl?.trim() || null
+                logo_url: finalLogoUrl
             })
             .eq('id', profile.tenant_id)
 

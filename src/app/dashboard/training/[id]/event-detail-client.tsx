@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { ChevronLeft, Save, Plus, X, Search, Settings, Loader2, CalendarDays, BookOpen, Clock, Users, Shield, CheckCircle2, UserCheck, MessageSquare, Mic, Droplet, Coffee, Share2, Copy, Youtube, Star, Trophy } from 'lucide-react'
 import Link from 'next/link'
@@ -45,6 +45,41 @@ export default function EventDetailClient({ event, drills, initialSlots, initial
     // UI Loading states
     const [loadingSlot, setLoadingSlot] = useState(false)
 
+    // Process slots into structured grouping blocks for rendering and formatting
+    const groupedSlots = useMemo(() => {
+        const groups: { name: string; isHeader: boolean; duration: number; slots: any[]; headerSlotId?: string }[] = [];
+        let currentGroup: { name: string; isHeader: boolean; duration: number; slots: any[]; headerSlotId?: string } = {
+            name: 'Planificación General',
+            isHeader: false,
+            duration: 0,
+            slots: []
+        };
+
+        slots.forEach((s) => {
+            if (s.slot_type === 'group') {
+                if (currentGroup.slots.length > 0 || currentGroup.isHeader) {
+                    groups.push(currentGroup);
+                }
+                currentGroup = {
+                    name: s.custom_title || 'Bloque',
+                    isHeader: true,
+                    duration: 0,
+                    slots: [],
+                    headerSlotId: s.id
+                };
+            } else {
+                currentGroup.slots.push(s);
+                currentGroup.duration += s.duration_minutes || 0;
+            }
+        });
+
+        if (currentGroup.slots.length > 0 || currentGroup.isHeader) {
+            groups.push(currentGroup);
+        }
+
+        return groups;
+    }, [slots]);
+
     const getYoutubeEmbedUrl = (url: string) => {
         if (!url) return null;
         try {
@@ -72,7 +107,7 @@ export default function EventDetailClient({ event, drills, initialSlots, initial
         const slotData: any = {
             event_id: event.id,
             slot_type: newSlot.slot_type,
-            duration_minutes: newSlot.duration_minutes,
+            duration_minutes: newSlot.slot_type === 'group' ? 0 : newSlot.duration_minutes,
             division_criteria: newSlot.division_criteria,
             coaches_assigned: newSlot.coaches_assigned,
             order_index: slots.length
@@ -275,40 +310,49 @@ export default function EventDetailClient({ event, drills, initialSlots, initial
 
         if (slots.length > 0) {
             msg += `📋 *PLANIFICACIÓN:*\n`
-            slots.forEach((s, i) => {
-                const isDrill = s.slot_type === 'drill' || !s.slot_type
-                const icon = isDrill ? '🏃' : (s.slot_type === 'hydration' ? '💧' : '☕')
-                const title = isDrill ? s.drills?.name : s.custom_title
-                msg += `${i + 1}. ${icon} *${title}* (${s.duration_minutes}m)\n`
-
-                if (isDrill) {
-                    msg += `   🔸 N1: ${s.drills?.focus_level_1 || 'General'}\n`
-                    msg += `   🔹 N2: ${s.drills?.focus_level_2 || 'General'}\n`
-
-                    const coachesForSlot = (s.coaches_assigned || []).map((cid: string, index: number) => {
-                        const coachName = coaches.find((c: any) => c.id === cid)?.full_name
-                        if (!coachName) return null
-                        return index === 0 ? `⭐ ${coachName}` : coachName
-                    }).filter(Boolean)
-                    if (coachesForSlot.length > 0) {
-                        msg += `   🗣️ Coaches: ${coachesForSlot.join(', ')}\n`
-                    }
-
-                    if (s.drills?.youtube_link) {
-                        msg += `   📺 Video Ref: ${s.drills.youtube_link}\n`
-                    }
-                    if (s.drills?.video_url) {
-                        msg += `   🎥 Video Local: ${s.drills.video_url}\n`
-                    }
-                    if (s.drills?.image_urls && s.drills.image_urls.length > 0) {
-                        msg += `   🖼️ Imágenes: ${s.drills.image_urls.join(' | ')}\n`
-                    } else if (s.drills?.image_url) {
-                        msg += `   🖼️ Imagen: ${s.drills.image_url}\n`
-                    }
-                    if (s.drills?.pdf_urls && s.drills.pdf_urls.length > 0) {
-                        msg += `   📄 PDFs: ${s.drills.pdf_urls.join(' | ')}\n`
-                    }
+            let globalIdx = 0
+            
+            groupedSlots.forEach((group) => {
+                if (group.isHeader) {
+                    msg += `\n📦 *${group.name.toUpperCase()}* (${group.duration}m):\n`
                 }
+                
+                group.slots.forEach((s) => {
+                    const isDrill = s.slot_type === 'drill' || !s.slot_type
+                    const icon = isDrill ? '🏃' : (s.slot_type === 'hydration' ? '💧' : '☕')
+                    const title = isDrill ? s.drills?.name : s.custom_title
+                    globalIdx++
+                    msg += `${globalIdx}. ${icon} *${title}* (${s.duration_minutes}m)\n`
+
+                    if (isDrill) {
+                        msg += `   🔸 N1: ${s.drills?.focus_level_1 || 'General'}\n`
+                        msg += `   🔹 N2: ${s.drills?.focus_level_2 || 'General'}\n`
+
+                        const coachesForSlot = (s.coaches_assigned || []).map((cid: string, index: number) => {
+                            const coachName = coaches.find((c: any) => c.id === cid)?.full_name
+                            if (!coachName) return null
+                            return index === 0 ? `⭐ ${coachName}` : coachName
+                        }).filter(Boolean)
+                        if (coachesForSlot.length > 0) {
+                            msg += `   🗣️ Coaches: ${coachesForSlot.join(', ')}\n`
+                        }
+
+                        if (s.drills?.youtube_link) {
+                            msg += `   📺 Video Ref: ${s.drills.youtube_link}\n`
+                        }
+                        if (s.drills?.video_url) {
+                            msg += `   🎥 Video Local: ${s.drills.video_url}\n`
+                        }
+                        if (s.drills?.image_urls && s.drills.image_urls.length > 0) {
+                            msg += `   🖼️ Imágenes: ${s.drills.image_urls.join(' | ')}\n`
+                        } else if (s.drills?.image_url) {
+                            msg += `   🖼️ Imagen: ${s.drills.image_url}\n`
+                        }
+                        if (s.drills?.pdf_urls && s.drills.pdf_urls.length > 0) {
+                            msg += `   📄 PDFs: ${s.drills.pdf_urls.join(' | ')}\n`
+                        }
+                    }
+                })
             })
 
             // Aggregating teams
@@ -462,128 +506,160 @@ Personalizar el trato con cada jugador.
                             <div className="text-center py-20 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-3xl">
                                 <BookOpen className="w-12 h-12 text-gray-300 dark:text-gray-700 mx-auto mb-4" />
                                 <h3 className="text-lg font-bold text-gray-500">Planificación Vacía</h3>
-                                <p className="text-sm text-gray-400">Carga ejercicios de tu librería para armar el día.</p>
+                                <p className="text-sm text-gray-400">Carga ejercicios de tu librería para armar el día o crea bloques agrupadores.</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
-                                {slots.map((s, idx) => {
-                                    const isDrill = s.slot_type === 'drill' || !s.slot_type; // Fallback for old ones
-                                    return (
-                                        <div key={s.id} className={`border rounded-2xl p-5 shadow-sm flex items-start gap-4 flex-col md:flex-row relative group transition-colors ${!isDrill ? 'bg-blue-50/50 dark:bg-blue-500/5 border-blue-100 dark:border-blue-500/10' : 'bg-white dark:bg-[#102035] border-gray-200 dark:border-white/10'}`}>
-                                            {!['Completado', 'Cancelado'].includes(eventStatus) && (
-                                                <button onClick={() => handleDeleteSlot(s.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-500 bg-red-50 hover:bg-red-100 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity dark:bg-red-500/10 z-10">
-                                                    <X className="w-4 h-4" />
-                                                </button>
+                            <div className="space-y-6">
+                                {(() => {
+                                    let globalIdx = 0;
+                                    return groupedSlots.map((group, groupIdx) => (
+                                        <div key={groupIdx} className="space-y-4">
+                                            {/* Render group header if it is a block header */}
+                                            {group.isHeader && (
+                                                <div className="flex justify-between items-center bg-gray-100/70 dark:bg-[#111f38]/60 backdrop-blur-md px-6 py-4 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm relative group/header transition-all">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold">
+                                                            <BookOpen className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-black text-gray-950 dark:text-white uppercase tracking-wider text-sm">{group.name}</h4>
+                                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                                                                <Clock className="w-3.5 h-3.5" />
+                                                                <span>{group.duration} min acumulados</span>
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {!['Completado', 'Cancelado'].includes(eventStatus) && group.headerSlotId && (
+                                                        <button onClick={() => handleDeleteSlot(group.headerSlotId!)} className="text-red-400 hover:text-red-500 bg-red-50 hover:bg-red-100 p-2 rounded-xl opacity-0 group-hover/header:opacity-100 transition-opacity dark:bg-red-500/10" title="Eliminar Bloque">
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             )}
 
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg flex-shrink-0 shadow-sm ${!isDrill ? 'bg-blue-100 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-liceo-primary/10 dark:bg-[#5EE5F8]/10 text-liceo-primary dark:text-[#5EE5F8]'}`}>
-                                                {idx + 1}
-                                            </div>
-                                            <div className="flex-1 w-full">
-                                                <div className="flex items-center gap-3 mb-1">
-                                                    {!isDrill && s.slot_type === 'hydration' && <Droplet className="w-5 h-5 text-blue-500 dark:text-blue-400" />}
-                                                    {!isDrill && s.slot_type === 'rest' && <Coffee className="w-5 h-5 text-amber-500 dark:text-amber-400" />}
-                                                    <h3 className="font-black text-gray-900 dark:text-white text-lg">{isDrill ? s.drills?.name : s.custom_title}</h3>
-                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1 ${!isDrill ? 'text-blue-600 bg-blue-100 dark:bg-blue-500/20 dark:text-blue-300' : 'text-gray-500 bg-gray-100 dark:bg-white/5'}`}><Clock className="w-3 h-3" /> {s.duration_minutes}m</span>
-                                                </div>
+                                            {/* Render slots in this group */}
+                                            {group.slots.map((s) => {
+                                                const isDrill = s.slot_type === 'drill' || !s.slot_type;
+                                                const currentIdx = ++globalIdx;
+                                                return (
+                                                    <div key={s.id} className={`border rounded-2xl p-5 shadow-sm flex items-start gap-4 flex-col md:flex-row relative group transition-colors ${!isDrill ? 'bg-blue-50/50 dark:bg-blue-500/5 border-blue-100 dark:border-blue-500/10' : 'bg-white dark:bg-[#102035] border-gray-200 dark:border-white/10'}`}>
+                                                        {!['Completado', 'Cancelado'].includes(eventStatus) && (
+                                                            <button onClick={() => handleDeleteSlot(s.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-500 bg-red-50 hover:bg-red-100 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity dark:bg-red-500/10 z-10">
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        )}
 
-                                                {isDrill && (
-                                                    <>
-                                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{s.drills?.description}</p>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 dark:bg-black/20 p-4 rounded-xl">
-                                                            <div>
-                                                                <p className="text-[10px] font-bold uppercase text-gray-400 mb-1">Focos de Nivel</p>
-                                                                <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-3">
-                                                                    <li>
-                                                                        <strong className="text-blue-500 block mb-1">N1: {s.drills?.focus_level_1 || 'General'}</strong>
-                                                                        <div className="flex flex-wrap gap-1">
-                                                                            {(s.teams_level_1 || []).map((tId: string) => {
-                                                                                const t = teams?.find((x: any) => x.id === tId)
-                                                                                return t ? <span key={tId} className="bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">{t.name}</span> : null
-                                                                            })}
-                                                                            {!(s.teams_level_1?.length > 0) && <span className="text-[10px] text-gray-400 italic">Todos</span>}
-                                                                        </div>
-                                                                    </li>
-                                                                    <li>
-                                                                        <strong className="text-purple-500 block mb-1">N2: {s.drills?.focus_level_2 || 'General'}</strong>
-                                                                        <div className="flex flex-wrap gap-1">
-                                                                            {(s.teams_level_2 || []).map((tId: string) => {
-                                                                                const t = teams?.find((x: any) => x.id === tId)
-                                                                                return t ? <span key={tId} className="bg-purple-100 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">{t.name}</span> : null
-                                                                            })}
-                                                                            {!(s.teams_level_2?.length > 0) && <span className="text-[10px] text-gray-400 italic">Todos</span>}
-                                                                        </div>
-                                                                    </li>
-                                                                </ul>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[10px] font-bold uppercase text-gray-400 mb-1">Organización / Coaches</p>
-                                                                <p className="text-xs text-gray-700 dark:text-gray-300 mb-1"><strong className="text-gray-900 dark:text-white">División:</strong> {s.division_criteria || 'Todo el plantel junto'}</p>
-                                                                <div className="flex gap-1 flex-wrap mt-2">
-                                                                    {(s.coaches_assigned || []).map((cId: string, idx: number) => {
-                                                                        const c = coaches.find((x: any) => x.id === cId)
-                                                                        if (!c) return null
-                                                                        return (
-                                                                            <span key={cId} className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 w-max ${idx === 0 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-500/30' : 'bg-liceo-primary text-white dark:bg-[#164E87]'}`}>
-                                                                                {idx === 0 && <Star className="w-2.5 h-2.5 fill-current" />} {c.full_name}
-                                                                            </span>
-                                                                        )
-                                                                    })}
-                                                                </div>
-
-                                                                {(s.drills?.youtube_link || s.drills?.video_url || s.drills?.image_url || (s.drills?.image_urls && s.drills.image_urls.length > 0)) && (
-                                                                    <div className="mt-4 pt-3 border-t border-gray-200 dark:border-white/10 space-y-3">
-                                                                        <p className="text-[10px] font-bold uppercase text-gray-500 mb-2 tracking-wider">Material de Apoyo</p>
-
-                                                                        {/* Images */}
-                                                                        {s.drills.image_urls && s.drills.image_urls.length > 0 ? (
-                                                                            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                                                                                {s.drills.image_urls.map((url: string, i: number) => (
-                                                                                    <div key={i} className="flex-shrink-0 w-4/5 aspect-video rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-white/10 scroll-snap-align-start relative z-10 w-full">
-                                                                                        <img src={url} alt={`Preview ${i}`} className="w-full h-full object-cover relative z-10" />
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                        ) : s.drills.image_url ? (
-                                                                            <div className="aspect-video w-full rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-white/10 relative z-10">
-                                                                                <img src={s.drills.image_url} alt="Preview" className="w-full h-full object-cover" />
-                                                                            </div>
-                                                                        ) : null}
-
-                                                                        {/* Video Local */}
-                                                                        {s.drills.video_url && (
-                                                                            <div className="aspect-video w-full rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-white/10 bg-black relative z-10">
-                                                                                <video src={s.drills.video_url} controls className="w-full h-full object-contain relative z-10" />
-                                                                            </div>
-                                                                        )}
-
-                                                                        {/* Youtube */}
-                                                                        {s.drills?.youtube_link && (
-                                                                            <div>
-                                                                                {(() => {
-                                                                                    const embedUrl = getYoutubeEmbedUrl(s.drills.youtube_link);
-                                                                                    return embedUrl ? (
-                                                                                        <div className="aspect-video w-full rounded-xl overflow-hidden shadow-md border border-gray-200 dark:border-white/10 bg-black relative z-10">
-                                                                                            <iframe src={embedUrl} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full relative z-10"></iframe>
-                                                                                        </div>
-                                                                                    ) : (
-                                                                                        <a href={s.drills.youtube_link} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 p-3 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 rounded-xl text-xs font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors">
-                                                                                            <Youtube className="w-4 h-4" /> Abrir en YouTube
-                                                                                        </a>
-                                                                                    );
-                                                                                })()}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg flex-shrink-0 shadow-sm ${!isDrill ? 'bg-blue-100 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-liceo-primary/10 dark:bg-[#5EE5F8]/10 text-liceo-primary dark:text-[#5EE5F8]'}`}>
+                                                            {currentIdx}
                                                         </div>
-                                                    </>
-                                                )}
-                                            </div>
+                                                        <div className="flex-1 w-full">
+                                                            <div className="flex items-center gap-3 mb-1">
+                                                                {!isDrill && s.slot_type === 'hydration' && <Droplet className="w-5 h-5 text-blue-500 dark:text-blue-400" />}
+                                                                {!isDrill && s.slot_type === 'rest' && <Coffee className="w-5 h-5 text-amber-500 dark:text-amber-400" />}
+                                                                <h3 className="font-black text-gray-900 dark:text-white text-lg">{isDrill ? s.drills?.name : s.custom_title}</h3>
+                                                                <span className={`text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1 ${!isDrill ? 'text-blue-600 bg-blue-100 dark:bg-blue-500/20 dark:text-blue-300' : 'text-gray-500 bg-gray-100 dark:bg-white/5'}`}><Clock className="w-3 h-3" /> {s.duration_minutes}m</span>
+                                                            </div>
+
+                                                            {isDrill && (
+                                                                <>
+                                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{s.drills?.description}</p>
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 dark:bg-black/20 p-4 rounded-xl">
+                                                                        <div>
+                                                                            <p className="text-[10px] font-bold uppercase text-gray-400 mb-1">Focos de Nivel</p>
+                                                                            <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-3">
+                                                                                <li>
+                                                                                    <strong className="text-blue-500 block mb-1">N1: {s.drills?.focus_level_1 || 'General'}</strong>
+                                                                                    <div className="flex flex-wrap gap-1">
+                                                                                        {(s.teams_level_1 || []).map((tId: string) => {
+                                                                                            const t = teams?.find((x: any) => x.id === tId)
+                                                                                            return t ? <span key={tId} className="bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">{t.name}</span> : null
+                                                                                        })}
+                                                                                        {!(s.teams_level_1?.length > 0) && <span className="text-[10px] text-gray-400 italic">Todos</span>}
+                                                                                    </div>
+                                                                                </li>
+                                                                                <li>
+                                                                                    <strong className="text-purple-500 block mb-1">N2: {s.drills?.focus_level_2 || 'General'}</strong>
+                                                                                    <div className="flex flex-wrap gap-1">
+                                                                                        {(s.teams_level_2 || []).map((tId: string) => {
+                                                                                            const t = teams?.find((x: any) => x.id === tId)
+                                                                                            return t ? <span key={tId} className="bg-purple-100 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">{t.name}</span> : null
+                                                                                        })}
+                                                                                        {!(s.teams_level_2?.length > 0) && <span className="text-[10px] text-gray-400 italic">Todos</span>}
+                                                                                    </div>
+                                                                                </li>
+                                                                            </ul>
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-[10px] font-bold uppercase text-gray-400 mb-1">Organización / Coaches</p>
+                                                                            <p className="text-xs text-gray-700 dark:text-gray-300 mb-1"><strong className="text-gray-900 dark:text-white">División:</strong> {s.division_criteria || 'Todo el plantel junto'}</p>
+                                                                            <div className="flex gap-1 flex-wrap mt-2">
+                                                                                {(s.coaches_assigned || []).map((cId: string, idx: number) => {
+                                                                                    const c = coaches.find((x: any) => x.id === cId)
+                                                                                    if (!c) return null
+                                                                                    return (
+                                                                                        <span key={cId} className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 w-max ${idx === 0 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-500/30' : 'bg-liceo-primary text-white dark:bg-[#164E87]'}`}>
+                                                                                            {idx === 0 && <Star className="w-2.5 h-2.5 fill-current" />} {c.full_name}
+                                                                                        </span>
+                                                                                    )
+                                                                                })}
+                                                                            </div>
+
+                                                                            {(s.drills?.youtube_link || s.drills?.video_url || s.drills?.image_url || (s.drills?.image_urls && s.drills.image_urls.length > 0)) && (
+                                                                                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-white/10 space-y-3">
+                                                                                    <p className="text-[10px] font-bold uppercase text-gray-500 mb-2 tracking-wider">Material de Apoyo</p>
+
+                                                                                    {/* Images */}
+                                                                                    {s.drills.image_urls && s.drills.image_urls.length > 0 ? (
+                                                                                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                                                                                            {s.drills.image_urls.map((url: string, i: number) => (
+                                                                                                <div key={i} className="flex-shrink-0 w-4/5 aspect-video rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-white/10 scroll-snap-align-start relative z-10 w-full">
+                                                                                                    <img src={url} alt={`Preview ${i}`} className="w-full h-full object-cover relative z-10" />
+                                                                                                </div>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    ) : s.drills.image_url ? (
+                                                                                        <div className="aspect-video w-full rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-white/10 relative z-10">
+                                                                                            <img src={s.drills.image_url} alt="Preview" className="w-full h-full object-cover" />
+                                                                                        </div>
+                                                                                    ) : null}
+
+                                                                                    {/* Video Local */}
+                                                                                    {s.drills.video_url && (
+                                                                                        <div className="aspect-video w-full rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-white/10 bg-black relative z-10">
+                                                                                            <video src={s.drills.video_url} controls className="w-full h-full object-contain relative z-10" />
+                                                                                        </div>
+                                                                                    )}
+
+                                                                                    {/* Youtube */}
+                                                                                    {s.drills?.youtube_link && (
+                                                                                        <div>
+                                                                                            {(() => {
+                                                                                                const embedUrl = getYoutubeEmbedUrl(s.drills.youtube_link);
+                                                                                                return embedUrl ? (
+                                                                                                    <div className="aspect-video w-full rounded-xl overflow-hidden shadow-md border border-gray-200 dark:border-white/10 bg-black relative z-10">
+                                                                                                        <iframe src={embedUrl} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full relative z-10"></iframe>
+                                                                                                    </div>
+                                                                                                ) : (
+                                                                                                    <a href={s.drills.youtube_link} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 p-3 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 rounded-xl text-xs font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors">
+                                                                                                        <Youtube className="w-4 h-4" /> Abrir en YouTube
+                                                                                                    </a>
+                                                                                                );
+                                                                                            })()}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                    )
-                                })}
+                                    ));
+                                })()}
                             </div>
                         )}
                     </div>
@@ -777,6 +853,7 @@ Personalizar el trato con cada jugador.
                             <button onClick={() => setNewSlot({ ...newSlot, slot_type: 'drill', duration_minutes: 15 })} className={`flex-1 py-2 rounded-lg transition-all ${newSlot.slot_type === 'drill' ? 'bg-white dark:bg-[#0B1526] text-liceo-primary dark:text-[#5EE5F8] shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-white'}`}>Drill</button>
                             <button onClick={() => setNewSlot({ ...newSlot, slot_type: 'hydration', custom_title: 'Hidratación', duration_minutes: 5, drill_id: '' })} className={`flex-1 py-2 rounded-lg transition-all flex justify-center items-center gap-1.5 ${newSlot.slot_type === 'hydration' ? 'bg-white dark:bg-[#0B1526] text-blue-500 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-white'}`}><Droplet className="w-4 h-4" /> Agua</button>
                             <button onClick={() => setNewSlot({ ...newSlot, slot_type: 'rest', custom_title: 'Descanso', duration_minutes: 10, drill_id: '' })} className={`flex-1 py-2 rounded-lg transition-all flex justify-center items-center gap-1.5 ${newSlot.slot_type === 'rest' ? 'bg-white dark:bg-[#0B1526] text-amber-500 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-white'}`}><Coffee className="w-4 h-4" /> Libre</button>
+                            <button onClick={() => setNewSlot({ ...newSlot, slot_type: 'group', custom_title: 'Bloque Preparación Física', duration_minutes: 0, drill_id: '' })} className={`flex-1 py-2 rounded-lg transition-all flex justify-center items-center gap-1.5 ${newSlot.slot_type === 'group' ? 'bg-white dark:bg-[#0B1526] text-purple-500 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-white'}`}><BookOpen className="w-4 h-4" /> Bloque</button>
                         </div>
 
                         <form onSubmit={handleAddSlot} className="space-y-4">
@@ -803,23 +880,25 @@ Personalizar el trato con cada jugador.
                                 </div>
                             ) : (
                                 <div>
-                                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Título Personalizado</label>
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Título Personalizado del Bloque / Slot</label>
                                     <input required value={newSlot.custom_title} onChange={e => setNewSlot({ ...newSlot, custom_title: e.target.value })} className="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white font-bold" />
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Duración Efectiva (min)</label>
-                                    <input type="number" required value={newSlot.duration_minutes} onChange={e => setNewSlot({ ...newSlot, duration_minutes: parseInt(e.target.value) })} className="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-liceo-accent dark:text-white font-bold" />
-                                </div>
-                                {newSlot.slot_type === 'drill' && (
+                            {newSlot.slot_type !== 'group' && (
+                                <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Estrategia División Niveles</label>
-                                        <input value={newSlot.division_criteria} onChange={e => setNewSlot({ ...newSlot, division_criteria: e.target.value })} placeholder="Ej: Fw separados por nivel" className="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-liceo-accent dark:text-white text-sm" />
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Duración Efectiva (min)</label>
+                                        <input type="number" required value={newSlot.duration_minutes} onChange={e => setNewSlot({ ...newSlot, duration_minutes: parseInt(e.target.value) })} className="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-liceo-accent dark:text-white font-bold" />
                                     </div>
-                                )}
-                            </div>
+                                    {newSlot.slot_type === 'drill' && (
+                                        <div>
+                                            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Estrategia División Niveles</label>
+                                            <input value={newSlot.division_criteria} onChange={e => setNewSlot({ ...newSlot, division_criteria: e.target.value })} placeholder="Ej: Fw separados por nivel" className="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-liceo-accent dark:text-white text-sm" />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {newSlot.slot_type === 'drill' && (
                                 <>

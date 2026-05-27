@@ -31,13 +31,36 @@ export default async function ParentCalendarPage() {
         }
     }
 
+    // Obtener los hijos vinculados para filtrar por categoría
+    const { data: linkages } = await supabase
+        .from('player_parents')
+        .select('player_id, players(category_id)')
+        .eq('parent_profile_id', user.id)
+
+    const childrenCategoryIds = Array.from(
+        new Set(
+            (linkages || [])
+                .map((l: any) => l.players?.category_id)
+                .filter(Boolean)
+        )
+    )
+
     // Fetch upcoming events from the next 60 days
     const today = new Date().toISOString()
-    const { data: events, error } = await supabase
+    
+    let eventsQuery = supabase
         .from('events')
         .select('*')
         .gte('event_date', today)
         .order('event_date', { ascending: true })
+
+    if (childrenCategoryIds.length > 0) {
+        eventsQuery = eventsQuery.or(`category_id.in.(${childrenCategoryIds.join(',')}),category_id.is.null`)
+    } else {
+        eventsQuery = eventsQuery.is('category_id', null)
+    }
+
+    const { data: events } = await eventsQuery
 
     return <CalendarClient initialEvents={events || []} tenantName={tenantName} />
 }

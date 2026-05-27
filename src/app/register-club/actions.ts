@@ -3,6 +3,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
+import { uploadExternalLogoToBucket } from '@/utils/logo-uploader'
+
 // We need a Service Role client to bypass RLS and create Tenants
 function createAdminClient() {
     return createSupabaseClient(
@@ -75,6 +77,18 @@ export async function registerNewClub(formData: FormData) {
             console.error('Tenant Error:', tenantError)
             // Rollback is complex here without a stored procedure, but at least we report it
             return { error: 'No se pudo registrar el club en la base de datos.' }
+        }
+
+        // Upload external logo to bucket if provided
+        if (logoUrl && logoUrl.trim() !== '') {
+            const bucketLogoUrl = await uploadExternalLogoToBucket(logoUrl, tenant.id)
+            if (bucketLogoUrl && bucketLogoUrl !== logoUrl) {
+                await adminClient
+                    .from('tenants')
+                    .update({ logo_url: bucketLogoUrl })
+                    .eq('id', tenant.id)
+                tenant.logo_url = bucketLogoUrl
+            }
         }
 
         // 3. Update the profile with tenant_id and role Admin
