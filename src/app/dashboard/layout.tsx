@@ -21,7 +21,8 @@ import {
     X,
     BookOpen,
     Sparkles,
-    CheckCircle2
+    CheckCircle2,
+    Settings
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { LangProvider, useLang } from '@/components/lang-provider'
@@ -200,9 +201,6 @@ function DashboardHeader() {
                         <Link href="/dashboard/teams" className={`${isActive('/dashboard/teams') ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.teams}</Link>
                         <Link href="/dashboard/training" className={`${isActive('/dashboard/training') ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.training}</Link>
                         <Link href="/dashboard/matches" className={`${isActive('/dashboard/matches') ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.matches}</Link>
-                        {(userRole === 'Admin' || userRole === 'Administrador') && (
-                            <Link href="/dashboard/admin" className={`${isActive('/dashboard/admin') ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>Administración</Link>
-                        )}
                     </>
                 )}
                 <Link href={isStaff ? "/dashboard/billboard" : "/dashboard/parent/billboard"} className={`${isActive(isStaff ? "/dashboard/billboard" : "/dashboard/parent/billboard") ? 'text-liceo-primary dark:text-[#5EE5F8] border-b-2 border-liceo-primary dark:border-[#5EE5F8]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} text-sm font-bold pb-1 transition-colors`}>{t.nav.billboard}</Link>
@@ -241,6 +239,21 @@ function DashboardHeader() {
                     <Bell className="w-4 h-4 md:w-5 md:h-5" />
                     <span className="absolute top-1 right-1.5 w-2 h-2 bg-liceo-accent dark:bg-liceo-gold rounded-full"></span>
                 </button>
+
+                {/* Administration Settings Gear Icon Link for Tenant Admins */}
+                {(userRole === 'Admin' || userRole === 'Administrador') && (
+                    <Link
+                        href="/dashboard/admin"
+                        className={`flex items-center justify-center p-2 md:p-2.5 rounded-xl border transition-all ${
+                            isActive('/dashboard/admin')
+                                ? 'bg-liceo-primary/10 border-liceo-primary/30 text-liceo-primary dark:bg-[#5EE5F8]/10 dark:border-[#5EE5F8]/30 dark:text-[#5EE5F8]'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-[#172540] border-gray-200 dark:border-white/5 shadow-sm'
+                        }`}
+                        title={lang === 'es' ? 'Administración' : 'Administration'}
+                    >
+                        <Settings className="w-4 h-4 md:w-5 md:h-5 animate-hover-spin" />
+                    </Link>
+                )}
 
                 {/* Profile Mobile/Desktop */}
                 <Link href={isStaff ? "/dashboard/profile" : "/dashboard/parent/profile"} className="flex text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5">
