@@ -16,7 +16,12 @@ import {
     Shield,
     Megaphone,
     Calendar,
-    Loader2
+    Loader2,
+    HelpCircle,
+    X,
+    BookOpen,
+    Sparkles,
+    CheckCircle2
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { LangProvider, useLang } from '@/components/lang-provider'
@@ -36,6 +41,7 @@ function DashboardHeader() {
     const [categories, setCategories] = useState<any[]>([])
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('All')
     const [userRole, setUserRole] = useState<string | null>(null)
+    const [isHelpOpen, setIsHelpOpen] = useState(false)
 
     const basePath = pathname.includes('/dashboard/parent') ? '/dashboard/parent' : '/dashboard/staff'
     const isStaff = basePath === '/dashboard/staff'
@@ -208,6 +214,14 @@ function DashboardHeader() {
             {/* Right Box: Actions */}
             <div className="flex items-center gap-2 md:gap-3 ml-auto">
                 <button
+                    onClick={() => setIsHelpOpen(true)}
+                    className="flex text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5 shadow-sm"
+                    title={lang === 'es' ? 'Manual de Ayuda' : 'User Manual'}
+                >
+                    <HelpCircle className="w-4 h-4 md:w-5 md:h-5 text-liceo-primary dark:text-[#5EE5F8]" />
+                </button>
+
+                <button
                     onClick={() => setLang(lang === 'es' ? 'en' : 'es')}
                     className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] px-2 py-2 md:px-3 md:py-2.5 rounded-xl border border-gray-200 dark:border-white/5 font-bold text-xs"
                 >
@@ -238,6 +252,13 @@ function DashboardHeader() {
                     <LogOut className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
             </div>
+
+            <HelpManualModal
+                isOpen={isHelpOpen}
+                onClose={() => setIsHelpOpen(false)}
+                userRole={userRole}
+                lang={lang}
+            />
         </header>
     )
 }
@@ -372,3 +393,471 @@ export default function DashboardLayout({
         </LangProvider>
     )
 }
+
+// Interactive bilingual User Manual Modal
+function HelpManualModal({
+    isOpen,
+    onClose,
+    userRole,
+    lang
+}: {
+    isOpen: boolean
+    onClose: () => void
+    userRole: string | null
+    lang: 'es' | 'en'
+}) {
+    const [activeTab, setActiveTab] = useState<'admin' | 'staff' | 'parent'>('staff')
+    const [searchQuery, setSearchQuery] = useState('')
+
+    // Set initial tab according to the user's role
+    useEffect(() => {
+        if (!isOpen) return
+        const role = userRole?.toLowerCase() || ''
+        if (role.includes('admin') || role.includes('superadmin') || role.includes('administrador')) {
+            setActiveTab('admin')
+        } else if (role.includes('parent') || role.includes('padre') || role.includes('jugador') || role.includes('family') || role.includes('madre') || role.includes('familiar')) {
+            setActiveTab('parent')
+        } else {
+            setActiveTab('staff')
+        }
+        setSearchQuery('')
+    }, [isOpen, userRole])
+
+    if (!isOpen) return null
+
+    const manualData = lang === 'es' ? manualEs : manualEn
+
+    // Filter logic for searching the manual in real time
+    const filteredSections = manualData.sections[activeTab].filter(
+        (sec) =>
+            sec.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            sec.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            sec.steps?.some((step) => step.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+
+    const isCurrentTabUserRole = () => {
+        const role = userRole?.toLowerCase() || ''
+        if (activeTab === 'admin' && (role.includes('admin') || role.includes('superadmin') || role.includes('administrador'))) return true
+        if (activeTab === 'parent' && (role.includes('parent') || role.includes('padre') || role.includes('jugador') || role.includes('family') || role.includes('madre') || role.includes('familiar'))) return true
+        if (activeTab === 'staff' && 
+            !role.includes('admin') && !role.includes('superadmin') && !role.includes('administrador') &&
+            !role.includes('parent') && !role.includes('padre') && !role.includes('jugador') && !role.includes('family') && !role.includes('madre') && !role.includes('familiar')
+        ) return true
+        return false
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-center justify-center p-3 md:p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#0E1B30] border border-gray-200 dark:border-white/10 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[88vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                {/* Header */}
+                <div className="relative p-6 md:p-8 border-b border-gray-100 dark:border-white/5 bg-gradient-to-r from-gray-50/50 to-white dark:from-[#11233E]/50 dark:to-[#0E1B30]">
+                    <button 
+                        onClick={onClose}
+                        className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 p-2 rounded-xl"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                    
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2.5 rounded-xl bg-liceo-primary/10 dark:bg-[#5EE5F8]/10 text-liceo-primary dark:text-[#5EE5F8]">
+                            <BookOpen className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-xl md:text-2xl font-black text-liceo-primary dark:text-[#5EE5F8] tracking-tight">
+                            {manualData.title}
+                        </h2>
+                        <span className="flex items-center gap-1 text-[10px] md:text-xs font-bold tracking-wide uppercase px-2.5 py-1 rounded-full bg-liceo-gold/10 text-liceo-accent dark:text-[#5EE5F8] dark:bg-white/5 border border-liceo-gold/30 dark:border-white/10 ml-auto mr-10 sm:mr-0">
+                            <Sparkles className="w-3 h-3 text-liceo-gold" />
+                            {lang === 'es' ? 'Ayuda Inteligente' : 'Smart Help'}
+                        </span>
+                    </div>
+                    <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 font-medium">
+                        {manualData.subtitle}
+                    </p>
+
+                    {/* Role Indicator Info */}
+                    {userRole && (
+                        <div className="mt-3 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-semibold bg-gray-100 dark:bg-white/5 px-3 py-1.5 rounded-lg w-fit">
+                            <span>{manualData.roleIndicator}</span>
+                            <span className="text-liceo-primary dark:text-[#5EE5F8] uppercase tracking-wider">{userRole}</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Tabs & Search Bar Row */}
+                <div className="p-4 md:p-6 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-[#11233E]/20 flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center">
+                    {/* Navigation Tabs */}
+                    <div className="flex bg-gray-200/60 dark:bg-[#162947] p-1 rounded-2xl gap-1 self-start md:self-auto w-full md:w-auto">
+                        <button
+                            onClick={() => { setActiveTab('admin'); setSearchQuery(''); }}
+                            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-3 py-2.5 md:px-4 md:py-2 text-xs md:text-sm font-bold tracking-wide uppercase rounded-xl transition-all ${
+                                activeTab === 'admin'
+                                    ? 'bg-white dark:bg-[#0B1526] text-liceo-primary dark:text-[#5EE5F8] shadow-md'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'
+                            }`}
+                        >
+                            <Shield className="w-4 h-4 flex-shrink-0" />
+                            <span>{manualData.tabs.admin}</span>
+                            {userRole && (userRole.toLowerCase().includes('admin') || userRole.toLowerCase().includes('superadmin') || userRole.toLowerCase().includes('administrador')) && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#5EE5F8] animate-ping" />
+                            )}
+                        </button>
+                        
+                        <button
+                            onClick={() => { setActiveTab('staff'); setSearchQuery(''); }}
+                            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-3 py-2.5 md:px-4 md:py-2 text-xs md:text-sm font-bold tracking-wide uppercase rounded-xl transition-all ${
+                                activeTab === 'staff'
+                                    ? 'bg-white dark:bg-[#0B1526] text-liceo-primary dark:text-[#5EE5F8] shadow-md'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'
+                            }`}
+                        >
+                            <Dumbbell className="w-4 h-4 flex-shrink-0" />
+                            <span>{manualData.tabs.staff}</span>
+                            {userRole && 
+                                !userRole.toLowerCase().includes('admin') && !userRole.toLowerCase().includes('superadmin') && !userRole.toLowerCase().includes('administrador') &&
+                                !userRole.toLowerCase().includes('parent') && !userRole.toLowerCase().includes('padre') && !userRole.toLowerCase().includes('jugador') && !userRole.toLowerCase().includes('family') && !userRole.toLowerCase().includes('madre') && !userRole.toLowerCase().includes('familiar') && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#5EE5F8] animate-ping" />
+                            )}
+                        </button>
+
+                        <button
+                            onClick={() => { setActiveTab('parent'); setSearchQuery(''); }}
+                            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-3 py-2.5 md:px-4 md:py-2 text-xs md:text-sm font-bold tracking-wide uppercase rounded-xl transition-all ${
+                                activeTab === 'parent'
+                                    ? 'bg-white dark:bg-[#0B1526] text-liceo-primary dark:text-[#5EE5F8] shadow-md'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'
+                            }`}
+                        >
+                            <Users className="w-4 h-4 flex-shrink-0" />
+                            <span>{manualData.tabs.parent}</span>
+                            {userRole && (userRole.toLowerCase().includes('parent') || userRole.toLowerCase().includes('padre') || userRole.toLowerCase().includes('jugador') || userRole.toLowerCase().includes('family') || userRole.toLowerCase().includes('madre') || userRole.toLowerCase().includes('familiar')) && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#5EE5F8] animate-ping" />
+                            )}
+                        </button>
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="relative flex-1 md:max-w-xs">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder={lang === 'es' ? "Buscar función..." : "Search feature..."}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-gray-100 dark:bg-[#162947] hover:bg-gray-200/50 dark:hover:bg-[#1d355c] focus:bg-white focus:dark:bg-[#0B1526] text-gray-900 dark:text-white placeholder-gray-400 text-sm pl-10 pr-4 py-2.5 rounded-2xl border border-transparent focus:border-liceo-primary/30 dark:focus:border-[#5EE5F8]/30 focus:outline-none transition-all"
+                        />
+                        {searchQuery && (
+                            <button 
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-white/5">
+                    {/* Active tab notice badge */}
+                    {isCurrentTabUserRole() && (
+                        <div className="p-3.5 rounded-2xl bg-[#5EE5F8]/5 border border-[#5EE5F8]/20 flex items-center gap-3 text-xs text-[#5EE5F8] font-bold tracking-wide uppercase">
+                            <span className="w-2 h-2 rounded-full bg-[#5EE5F8] animate-pulse" />
+                            {lang === 'es' ? 'Estas son tus herramientas asignadas para tu cuenta' : 'These are the tools assigned to your account'}
+                        </div>
+                    )}
+
+                    {filteredSections.length === 0 ? (
+                        <div className="py-12 flex flex-col items-center justify-center text-center">
+                            <Search className="w-12 h-12 text-gray-300 dark:text-white/10 mb-4 stroke-1" />
+                            <p className="text-gray-500 dark:text-gray-400 font-bold text-lg">
+                                {lang === 'es' ? 'No se encontraron resultados' : 'No results found'}
+                            </p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xs">
+                                {lang === 'es' ? 'Intenta usar palabras claves más generales o cambia de pestaña.' : 'Try using more general keywords or switch tabs.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-6">
+                            {filteredSections.map((section, idx) => (
+                                <div 
+                                    key={idx}
+                                    className="group bg-gray-50/50 dark:bg-[#11233E]/30 hover:bg-white dark:hover:bg-[#11233E]/50 border border-gray-100 dark:border-white/5 hover:border-liceo-primary/20 dark:hover:border-[#5EE5F8]/20 p-5 md:p-6 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+                                        <h3 className="text-md md:text-lg font-black text-gray-800 dark:text-white group-hover:text-liceo-primary dark:group-hover:text-[#5EE5F8] transition-colors">
+                                            {section.title}
+                                        </h3>
+                                        {section.badge && (
+                                            <span className="text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-md bg-liceo-primary/10 dark:bg-[#5EE5F8]/10 text-liceo-primary dark:text-[#5EE5F8]">
+                                                {section.badge}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 font-medium mb-4 leading-relaxed">
+                                        {section.description}
+                                    </p>
+                                    
+                                    {section.steps && section.steps.length > 0 && (
+                                        <div className="bg-white/80 dark:bg-[#0B1526]/50 rounded-xl p-4 border border-gray-100 dark:border-white/5 space-y-2.5">
+                                            {section.steps.map((step, sIdx) => (
+                                                <div key={sIdx} className="flex items-start gap-2.5 text-xs text-gray-600 dark:text-gray-300 font-medium leading-normal">
+                                                    <CheckCircle2 className="w-4 h-4 text-[#5EE5F8] mt-0.5 flex-shrink-0" />
+                                                    <span>{step}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 md:p-6 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-[#11233E]/20 flex items-center justify-between">
+                    <span className="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 font-bold tracking-wide uppercase">
+                        RoasterManager v2.1 • User Manual
+                    </span>
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2.5 rounded-2xl bg-liceo-primary hover:bg-liceo-primary-dark dark:bg-[#5EE5F8] dark:hover:bg-[#47d1e4] text-white dark:text-[#0B1526] font-bold text-xs md:text-sm tracking-wider uppercase transition-colors shadow-md shadow-liceo-primary/10 dark:shadow-none"
+                    >
+                        {manualData.closeBtn}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// BILINGUAL MANUAL CONTENT DEFINITIONS
+const manualEs = {
+    title: "Manual de Usuario",
+    subtitle: "Aprende a dominar todas las funciones de RoasterManager V2 según tu rol.",
+    tabs: {
+        admin: "Administrador",
+        staff: "Staff & Coaches",
+        parent: "Familiares & Padres"
+    },
+    roleIndicator: "Tu rol actual:",
+    closeBtn: "Entendido",
+    sections: {
+        admin: [
+            {
+                title: "Configuración del Club e Institución",
+                description: "Personaliza la identidad visual de tu club. Sube el logo y actualiza el nombre.",
+                badge: "Club",
+                steps: [
+                    "Dirígete al panel de Administración en la barra superior.",
+                    "Completa o edita el nombre oficial del club.",
+                    "Pega el enlace de la imagen del logo en el campo correspondiente. El sistema lo descargará e importará automáticamente al bucket seguro de Supabase para cargas rápidas.",
+                    "Guarda los cambios. El logo se reflejará inmediatamente en toda la cabecera y accesos."
+                ]
+            },
+            {
+                title: "Planes y Suscripción",
+                description: "Administra el tipo de cuenta activa para tu club y conoce los precios oficiales.",
+                badge: "Planes",
+                steps: [
+                    "Plan Basic (49,99 USD/mes + IVA): Acceso completo a la gestión del plantel de jugadores, toma de asistencia e importación CSV básica.",
+                    "Plan Premium (99,99 USD/mes + IVA): Desbloquea categorías y divisiones ilimitadas, planificación avanzada con Bloques Agrupadores en entrenamientos y reportes analíticos de desarrollo de destrezas."
+                ]
+            },
+            {
+                title: "Categorías y Divisiones",
+                description: "Crea las divisiones competitivas y juveniles (ej. M13, M14) de tu institución.",
+                badge: "Estructura",
+                steps: [
+                    "Accede a Administración > Categorías.",
+                    "Crea o edita categorías ilimitadamente (Premium) para agrupar a tus jugadores.",
+                    "Asigna entrenadores a categorías específicas para segmentar su visualización."
+                ]
+            }
+        ],
+        staff: [
+            {
+                title: "Gestión de Roster y Plantel",
+                description: "Agrega y administra la ficha deportiva de todos tus jugadores.",
+                badge: "Plantel",
+                steps: [
+                    "Alta manual rápida: Completa el formulario de nuevo jugador con datos esenciales.",
+                    "Importación masiva CSV: Sube un archivo de Excel/CSV y mapea de forma interactiva qué columna representa el Nombre, DNI, Categoría, Posición, Peso o Altura."
+                ]
+            },
+            {
+                title: "Planificador con Bloques Agrupadores",
+                description: "Planifica tus prácticas semanales y compártelas de forma directa por WhatsApp.",
+                badge: "Entrenamiento",
+                steps: [
+                    "Ve a 'Entrenamiento' > Planificar Evento.",
+                    "Crea 'Bloques Agrupadores' (ej. Preparación Física, Bloque Drills, Bloque Juego).",
+                    "Arrastra los ejercicios dentro de cada bloque. La app calcula de forma automática la suma de duración por bloque.",
+                    "Presiona 'Compartir por WhatsApp' para generar un reporte formateado listo para enviar."
+                ]
+            },
+            {
+                title: "Librería de Drills (Ejercicios)",
+                description: "Crea y cataloga tus mejores drills para reutilizarlos en el staff.",
+                badge: "Biblioteca",
+                steps: [
+                    "Un miembro del staff puede definir si un drill es Privado (solo accesible para él) o Público (para todo el club).",
+                    "El catálogo almacena videos, duraciones, y descripciones tácticas detalladas."
+                ]
+            },
+            {
+                title: "Equipos, Alineaciones y Radar",
+                description: "Arma la formación para el fin de semana.",
+                badge: "Táctica",
+                steps: [
+                    "Crea un nuevo equipo (ej. COMPETITIVA) en la sección Equipos.",
+                    "Arrastra titulares (1 al 15) y suplentes desde tu plantel disponible.",
+                    "Visualiza en tiempo real el radar biométrico y de skills promedio del equipo seleccionado contra el ideal."
+                ]
+            }
+        ],
+        parent: [
+            {
+                title: "Calendario Privado y Seguro",
+                description: "Visualiza de forma totalmente segura la agenda deportiva de tus hijos.",
+                badge: "Privacidad",
+                steps: [
+                    "Por motivos de seguridad, los familiares de un jugador sólo pueden ver los eventos deportivos que pertenezcan a la categoría oficial de su hijo.",
+                    "Accede a entrenamientos, partidos y avisos consolidados."
+                ]
+            },
+            {
+                title: "Métricas de Presentismo y Skills",
+                description: "Sigue de cerca el desarrollo de tu hijo de manera integral.",
+                badge: "Seguimiento",
+                steps: [
+                    "Observa los índices de asistencia (Presente / Ausente / Tarde) a lo largo del mes.",
+                    "Visualiza el radar de desarrollo de destrezas actualizado por los entrenadores para comprender sus progresos."
+                ]
+            },
+            {
+                title: "Cartelera Oficial",
+                description: "Mantente informado con avisos importantes en tiempo real.",
+                badge: "Noticias",
+                steps: [
+                    "Recibe de primera mano novedades de último momento, suspensiones por clima o comunicados generales de la directiva del club."
+                ]
+            }
+        ]
+    }
+}
+
+const manualEn = {
+    title: "User Manual",
+    subtitle: "Learn to master all features of RoasterManager V2 based on your role.",
+    tabs: {
+        admin: "Administrator",
+        staff: "Staff & Coaches",
+        parent: "Parents & Families"
+    },
+    roleIndicator: "Your current role:",
+    closeBtn: "Got it",
+    sections: {
+        admin: [
+            {
+                title: "Club & Institution Configuration",
+                description: "Customize your club's visual identity. Upload a logo and update the name.",
+                badge: "Club",
+                steps: [
+                    "Go to the Administration panel in the top navigation bar.",
+                    "Enter or edit your club's official name.",
+                    "Paste the logo image URL. The system will automatically download and store it in Supabase Storage secure bucket for fast loads.",
+                    "Save changes. The logo will immediately update across all user interfaces."
+                ]
+            },
+            {
+                title: "Plans & Subscriptions",
+                description: "Manage the active account plan for your club and check pricing details.",
+                badge: "Pricing",
+                steps: [
+                    "Basic Plan ($49.99 USD/month + VAT): Fully manage players roster, log attendance, and basic CSV imports.",
+                    "Premium Plan ($99.99 USD/month + VAT): Unlock unlimited categories and divisions, advanced Grouping Blocks for training, and full skills development analytical reports."
+                ]
+            },
+            {
+                title: "Categories & Divisions",
+                description: "Set up competitive and youth divisions (e.g., U13, U14) for your club.",
+                badge: "Structure",
+                steps: [
+                    "Go to Administration > Categories.",
+                    "Create or edit categories without limits (Premium) to group your players.",
+                    "Assign coaches to specific categories to filter access and divide tasks."
+                ]
+            }
+        ],
+        staff: [
+            {
+                title: "Roster & Squad Management",
+                description: "Add and manage player records in your directory.",
+                badge: "Roster",
+                steps: [
+                    "Quick manual onboarding: Fill out player profile with essential required details.",
+                    "Mass CSV import: Upload any Excel/CSV spreadsheet and interactively map columns like Name, ID, Category, Position, Weight, and Height."
+                ]
+            },
+            {
+                title: "Training Planner & Grouping Blocks",
+                description: "Structure your weekly practices and share them instantly over WhatsApp.",
+                badge: "Training",
+                steps: [
+                    "Go to 'Training' > Plan Event.",
+                    "Create 'Grouping Blocks' (e.g., Physical Prep, Drills Block, Match Play).",
+                    "Drag drills inside each block. The app automatically calculates cumulative durations for each section.",
+                    "Click 'Share on WhatsApp' to generate a formatted text with emojis, ready to send."
+                ]
+            },
+            {
+                title: "Drills Library",
+                description: "Create and catalog your best drills to share with the coaching staff.",
+                badge: "Library",
+                steps: [
+                    "Coaches can set drills as Private (only accessible to themselves) or Public (shared with all club coaches).",
+                    "Store videos, target durations, and detailed tactical guidelines."
+                ]
+            },
+            {
+                title: "Teams, Lineups & Skills Radar",
+                description: "Build tactical match formations for the weekend.",
+                badge: "Tactics",
+                steps: [
+                    "Create a new team (e.g., COMPETITIVE) under the Teams section.",
+                    "Drag starters (1 to 15) and substitutes from your roster list.",
+                    "Visualize biometric averages and skills comparison radars against the team's ideal state."
+                ]
+            }
+        ],
+        parent: [
+            {
+                title: "Private & Secure Calendar Access",
+                description: "View your children's schedule with absolute security.",
+                badge: "Privacy",
+                steps: [
+                    "For strict security compliance, family members can only view sports events matching their children's categories.",
+                    "Access consolidated dates for training practices, matches, and notifications."
+                ]
+            },
+            {
+                title: "Track Attendance & Skills",
+                description: "Keep a healthy, comprehensive track of your child's athletic progress.",
+                badge: "Progress",
+                steps: [
+                    "Monitor attendance rates (Present / Absent / Late) throughout the season.",
+                    "View the rugby skills radar chart updated by coaches to support their growth."
+                ]
+            },
+            {
+                title: "Official Billboard",
+                description: "Stay in the loop with official club updates.",
+                badge: "Billboard",
+                steps: [
+                    "Get instant notices of last-minute updates, weather cancellations, or major club alerts direct from the board."
+                ]
+            }
+        ]
+    }
+}
+
