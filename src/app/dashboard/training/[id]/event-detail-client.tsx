@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { ChevronLeft, Save, Plus, X, Search, Settings, Loader2, CalendarDays, BookOpen, Clock, Users, Shield, CheckCircle2, UserCheck, MessageSquare, Mic, Droplet, Coffee, Share2, Copy, Youtube, Star, Trophy } from 'lucide-react'
+import { ChevronLeft, Save, Plus, X, Search, Settings, Loader2, CalendarDays, BookOpen, Clock, Users, Shield, CheckCircle2, UserCheck, MessageSquare, Mic, Droplet, Coffee, Share2, Copy, Youtube, Star, Trophy, ArrowUp, ArrowDown } from 'lucide-react'
 import Link from 'next/link'
 import { showSuccessToast, showErrorToast } from '@/utils/toast'
 
@@ -145,6 +145,113 @@ export default function EventDetailClient({ event, drills, initialSlots, initial
         setSlots(slots.filter(s => s.id !== slotToDelete))
         setSlotToDelete(null)
         showSuccessToast('Bloque Eliminado', 'Se quitó de la planificación.')
+    }
+
+    const handleMoveSlot = async (slotId: string, direction: 'up' | 'down') => {
+        if (['Completado', 'Cancelado'].includes(eventStatus)) return;
+
+        const currentIndex = slots.findIndex(s => s.id === slotId)
+        if (currentIndex === -1) return
+
+        const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+        if (newIndex < 0 || newIndex >= slots.length) return
+
+        // Swapping elements in slots array
+        const updatedSlots = [...slots]
+        const temp = updatedSlots[currentIndex]
+        updatedSlots[currentIndex] = updatedSlots[newIndex]
+        updatedSlots[newIndex] = temp
+
+        // Re-assign order_index
+        updatedSlots.forEach((slot, idx) => {
+            slot.order_index = idx
+        })
+
+        // Optimistic State Update
+        setSlots(updatedSlots)
+
+        // Save to Supabase
+        const slotA = updatedSlots[currentIndex]
+        const slotB = updatedSlots[newIndex]
+
+        const updatePromises = [
+            supabase.from('event_plan_slots').update({ order_index: currentIndex }).eq('id', slotA.id),
+            supabase.from('event_plan_slots').update({ order_index: newIndex }).eq('id', slotB.id)
+        ]
+
+        const results = await Promise.all(updatePromises)
+        const hasError = results.some(r => r.error)
+
+        if (hasError) {
+            showErrorToast('Error', 'No se pudo reordenar en el servidor.')
+        } else {
+            showSuccessToast('Ejercicio Reordenado', 'El orden ha sido guardado exitosamente.')
+        }
+    }
+
+    const handleMoveBlock = async (groupIdx: number, direction: 'up' | 'down') => {
+        if (['Completado', 'Cancelado'].includes(eventStatus)) return;
+
+        const targetGroupIdx = direction === 'up' ? groupIdx - 1 : groupIdx + 1
+        if (targetGroupIdx < 0 || targetGroupIdx >= groupedSlots.length) return
+
+        const groupA = groupedSlots[groupIdx]
+        const groupB = groupedSlots[targetGroupIdx]
+
+        // Each group contains a slice of slots: group.headerSlotId (if it's a header group) + group.slots
+        const getGroupSlotsFullArray = (group: any) => {
+            const arr: any[] = []
+            if (group.isHeader && group.headerSlotId) {
+                const headerSlot = slots.find(s => s.id === group.headerSlotId)
+                if (headerSlot) arr.push(headerSlot)
+            }
+            group.slots.forEach((s: any) => {
+                arr.push(s)
+            })
+            return arr
+        }
+
+        const groupASlots = getGroupSlotsFullArray(groupA)
+        const groupBSlots = getGroupSlotsFullArray(groupB)
+
+        // Reorder grouped blocks
+        const newGroupedSlotsOrder = [...groupedSlots]
+        const temp = newGroupedSlotsOrder[groupIdx]
+        newGroupedSlotsOrder[groupIdx] = newGroupedSlotsOrder[targetGroupIdx]
+        newGroupedSlotsOrder[targetGroupIdx] = temp
+
+        const newMasterSlots: any[] = []
+        newGroupedSlotsOrder.forEach((g) => {
+            if (g.isHeader && g.headerSlotId) {
+                const hSlot = slots.find(s => s.id === g.headerSlotId)
+                if (hSlot) newMasterSlots.push(hSlot)
+            }
+            g.slots.forEach((s: any) => {
+                newMasterSlots.push(s)
+            })
+        })
+
+        // Re-assign order_index
+        newMasterSlots.forEach((slot, idx) => {
+            slot.order_index = idx
+        })
+
+        // Optimistic State Update
+        setSlots(newMasterSlots)
+
+        // Database Update: Save the new order_indexes for all slots in Supabase
+        const updatePromises = newMasterSlots.map((s, idx) =>
+            supabase.from('event_plan_slots').update({ order_index: idx }).eq('id', s.id)
+        )
+
+        const results = await Promise.all(updatePromises)
+        const hasError = results.some(r => r.error)
+
+        if (hasError) {
+            showErrorToast('Error', 'No se pudo reordenar los bloques en el servidor.')
+        } else {
+            showSuccessToast('Bloque Reordenado', 'El bloque se ha reordenado con éxito.')
+        }
     }
 
     const toggleCoachForSlot = (coachId: string) => {
@@ -529,10 +636,36 @@ Personalizar el trato con cada jugador.
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    {!['Completado', 'Cancelado'].includes(eventStatus) && group.headerSlotId && (
-                                                        <button onClick={() => handleDeleteSlot(group.headerSlotId!)} className="text-red-400 hover:text-red-500 bg-red-50 hover:bg-red-100 p-2 rounded-xl opacity-0 group-hover/header:opacity-100 transition-opacity dark:bg-red-500/10" title="Eliminar Bloque">
-                                                            <X className="w-4 h-4" />
-                                                        </button>
+                                                    {!['Completado', 'Cancelado'].includes(eventStatus) && (
+                                                        <div className="flex items-center gap-1.5 opacity-0 group-hover/header:opacity-100 transition-opacity">
+                                                            {groupIdx > 0 && (
+                                                                <button
+                                                                    onClick={() => handleMoveBlock(groupIdx, 'up')}
+                                                                    className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-50 dark:bg-white/5 p-1.5 rounded-xl border border-gray-200 dark:border-white/5 transition-all"
+                                                                    title="Subir Bloque Entero"
+                                                                >
+                                                                    <ArrowUp className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )}
+                                                            {groupIdx < groupedSlots.length - 1 && (
+                                                                <button
+                                                                    onClick={() => handleMoveBlock(groupIdx, 'down')}
+                                                                    className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-50 dark:bg-white/5 p-1.5 rounded-xl border border-gray-200 dark:border-white/5 transition-all"
+                                                                    title="Bajar Bloque Entero"
+                                                                >
+                                                                    <ArrowDown className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )}
+                                                            {group.headerSlotId && (
+                                                                <button 
+                                                                    onClick={() => handleDeleteSlot(group.headerSlotId!)} 
+                                                                    className="text-red-400 hover:text-red-500 bg-red-50 hover:bg-red-100 p-2 rounded-xl dark:bg-red-500/10" 
+                                                                    title="Eliminar Bloque"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
                                             )}
@@ -541,12 +674,37 @@ Personalizar el trato con cada jugador.
                                             {group.slots.map((s) => {
                                                 const isDrill = s.slot_type === 'drill' || !s.slot_type;
                                                 const currentIdx = ++globalIdx;
+                                                const sIdx = slots.findIndex(x => x.id === s.id);
                                                 return (
                                                     <div key={s.id} className={`border rounded-2xl p-5 shadow-sm flex items-start gap-4 flex-col md:flex-row relative group transition-colors ${!isDrill ? 'bg-blue-50/50 dark:bg-blue-500/5 border-blue-100 dark:border-blue-500/10' : 'bg-white dark:bg-[#102035] border-gray-200 dark:border-white/10'}`}>
                                                         {!['Completado', 'Cancelado'].includes(eventStatus) && (
-                                                            <button onClick={() => handleDeleteSlot(s.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-500 bg-red-50 hover:bg-red-100 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity dark:bg-red-500/10 z-10">
-                                                                <X className="w-4 h-4" />
-                                                            </button>
+                                                            <div className="absolute top-4 right-4 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                                                {sIdx > 0 && (
+                                                                    <button
+                                                                        onClick={() => handleMoveSlot(s.id, 'up')}
+                                                                        className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-50 dark:bg-white/5 p-1.5 rounded-lg border border-gray-200 dark:border-white/5 transition-all"
+                                                                        title="Subir Ejercicio"
+                                                                    >
+                                                                        <ArrowUp className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                )}
+                                                                {sIdx < slots.length - 1 && (
+                                                                    <button
+                                                                        onClick={() => handleMoveSlot(s.id, 'down')}
+                                                                        className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-50 dark:bg-white/5 p-1.5 rounded-lg border border-gray-200 dark:border-white/5 transition-all"
+                                                                        title="Bajar Ejercicio"
+                                                                    >
+                                                                        <ArrowDown className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                )}
+                                                                <button 
+                                                                    onClick={() => handleDeleteSlot(s.id)} 
+                                                                    className="text-red-400 hover:text-red-500 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg dark:bg-red-500/10"
+                                                                    title="Eliminar Ejercicio"
+                                                                >
+                                                                    <X className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
                                                         )}
 
                                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg flex-shrink-0 shadow-sm ${!isDrill ? 'bg-blue-100 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-liceo-primary/10 dark:bg-[#5EE5F8]/10 text-liceo-primary dark:text-[#5EE5F8]'}`}>
