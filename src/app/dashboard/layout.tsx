@@ -157,7 +157,10 @@ function DashboardHeader() {
         <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 dark:bg-[#0B1526]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/5 shadow-md py-3' : 'bg-white dark:bg-[#0B1526] py-4 md:py-5'} px-4 md:px-6 flex items-center justify-between`}>
             {/* Left Box: Logo & Title */}
             <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-gray-200 dark:border-[#5EE5F8]/30 bg-gray-50 dark:bg-[#111f38] flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
+                <div 
+                    className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-gray-200 dark:border-[#5EE5F8]/30 bg-gray-50 dark:bg-[#111f38] flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner"
+                    title={lang === 'es' ? 'Identidad visual del club' : 'Club visual identity'}
+                >
                     {tenantLogo ? (
                         <img src={tenantLogo} alt="Logo" className="object-contain w-full h-full p-1" />
                     ) : (
@@ -176,6 +179,7 @@ function DashboardHeader() {
                             value={selectedCategoryId} 
                             onChange={handleCategoryChange}
                             className="bg-transparent text-gray-500 dark:text-gray-400 text-[10px] md:text-xs font-bold tracking-wide uppercase focus:outline-none border-b border-transparent hover:border-gray-300 dark:hover:border-white/20 cursor-pointer mt-0.5"
+                            title={lang === 'es' ? 'Filtrar vistas por Categoría o División' : 'Filter views by Category or Division'}
                         >
                             <option value="All" className="bg-[#0B1526] text-white">Todas las Categorías</option>
                             {categories.map((cat) => (
@@ -214,7 +218,7 @@ function DashboardHeader() {
                 <button
                     onClick={() => setIsHelpOpen(true)}
                     className="flex text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5 shadow-sm"
-                    title={lang === 'es' ? 'Manual de Ayuda' : 'User Manual'}
+                    title={lang === 'es' ? 'Manual de Ayuda: Consulta guías y funciones del sistema' : 'Help Manual: Read system guides & features'}
                 >
                     <HelpCircle className="w-4 h-4 md:w-5 md:h-5 text-liceo-primary dark:text-[#5EE5F8]" />
                 </button>
@@ -222,20 +226,30 @@ function DashboardHeader() {
                 <button
                     onClick={() => setLang(lang === 'es' ? 'en' : 'es')}
                     className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] px-2 py-2 md:px-3 md:py-2.5 rounded-xl border border-gray-200 dark:border-white/5 font-bold text-xs"
+                    title={lang === 'es' ? 'Cambiar idioma a Inglés' : 'Switch language to Spanish'}
                 >
                     <Globe className="w-4 h-4 md:w-5 md:h-5" />
                     <span className="hidden sm:inline uppercase">{lang}</span>
                 </button>
 
-                <div className="bg-gray-100 dark:bg-[#172540] rounded-xl border border-gray-200 dark:border-white/5 px-2 md:px-2.5 py-1 flex items-center">
+                <div 
+                    className="bg-gray-100 dark:bg-[#172540] rounded-xl border border-gray-200 dark:border-white/5 px-2 md:px-2.5 py-1 flex items-center"
+                    title={lang === 'es' ? 'Cambiar tema de color (Claro / Oscuro / Sistema)' : 'Toggle color theme (Light / Dark / System)'}
+                >
                     <ModeToggle />
                 </div>
 
                 {/* Return Search & Bell via dropdowns/modals generally, but keep for desktop space */}
-                <button className="hidden xl:flex text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5">
+                <button 
+                    className="hidden xl:flex text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5"
+                    title={lang === 'es' ? 'Buscar en la plataforma' : 'Search the platform'}
+                >
                     <Search className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
-                <button className="hidden xl:flex text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5 relative">
+                <button 
+                    className="hidden xl:flex text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5 relative"
+                    title={lang === 'es' ? 'Notificaciones y Avisos' : 'Notifications & Alerts'}
+                >
                     <Bell className="w-4 h-4 md:w-5 md:h-5" />
                     <span className="absolute top-1 right-1.5 w-2 h-2 bg-liceo-accent dark:bg-liceo-gold rounded-full"></span>
                 </button>
@@ -249,19 +263,27 @@ function DashboardHeader() {
                                 ? 'bg-liceo-primary/10 border-liceo-primary/30 text-liceo-primary dark:bg-[#5EE5F8]/10 dark:border-[#5EE5F8]/30 dark:text-[#5EE5F8]'
                                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-[#172540] border-gray-200 dark:border-white/5 shadow-sm'
                         }`}
-                        title={lang === 'es' ? 'Administración' : 'Administration'}
+                        title={lang === 'es' ? 'Administración: Configuración del Club, Categorías y Staff' : 'Administration: Club, Categories & Staff Settings'}
                     >
                         <Settings className="w-4 h-4 md:w-5 md:h-5 animate-hover-spin" />
                     </Link>
                 )}
 
                 {/* Profile Mobile/Desktop */}
-                <Link href={isStaff ? "/dashboard/profile" : "/dashboard/parent/profile"} className="flex text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5">
+                <Link 
+                    href={isStaff ? "/dashboard/profile" : "/dashboard/parent/profile"} 
+                    className="flex text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5"
+                    title={lang === 'es' ? 'Mi Cuenta y Perfil' : 'My Account & Profile'}
+                >
                     <UserCircle className="w-4 h-4 md:w-5 md:h-5" />
                 </Link>
 
                 {/* Logout Button */}
-                <button onClick={handleLogout} className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5 flex items-center gap-2">
+                <button 
+                    onClick={handleLogout} 
+                    className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors bg-gray-100 dark:bg-[#172540] p-2 md:p-2.5 rounded-xl border border-gray-200 dark:border-white/5 flex items-center gap-2"
+                    title={lang === 'es' ? 'Cerrar Sesión de forma segura' : 'Log out securely'}
+                >
                     <LogOut className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
             </div>
