@@ -15,7 +15,7 @@ export default async function TrainingPage() {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('role, category_id')
+        .select('role, category_id, tenant_id')
         .eq('id', user.id)
         .single()
 
@@ -93,10 +93,32 @@ export default async function TrainingPage() {
         })
     }
 
+    // Fetch categories for the active tenant
+    let categories: any[] = []
+    if (profile?.tenant_id) {
+        const { data: cats } = await supabase
+            .from('categories')
+            .select('id, name')
+            .eq('tenant_id', profile.tenant_id)
+            .order('name')
+        categories = cats || []
+    }
+
     const safeEvents = evErr ? [] : events
     const safeDrills = drErr ? [] : drills
     const safeProfiles = profErr ? [] : profiles
     const needsSetup = !!evErr
 
-    return <TrainingClient initialEvents={safeEvents || []} initialDrills={safeDrills || []} coaches={safeProfiles || []} needsSetup={needsSetup} attendanceCounts={attendanceCounts} />
+    return (
+        <TrainingClient 
+            initialEvents={safeEvents || []} 
+            initialDrills={safeDrills || []} 
+            coaches={safeProfiles || []} 
+            needsSetup={needsSetup} 
+            attendanceCounts={attendanceCounts} 
+            categories={categories}
+            userRole={profile?.role}
+            currentCategoryId={profile?.category_id}
+        />
+    )
 }

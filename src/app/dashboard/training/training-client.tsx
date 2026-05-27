@@ -8,13 +8,44 @@ import { showSuccessToast, showErrorToast } from '@/utils/toast'
 import { useLang } from '@/components/lang-provider'
 import Link from 'next/link'
 
-export default function TrainingClient({ initialEvents, initialDrills, coaches, needsSetup, attendanceCounts = {} }: { initialEvents: any[], initialDrills: any[], coaches: any[], needsSetup: boolean, attendanceCounts?: Record<string, number> }) {
+export default function TrainingClient({ 
+    initialEvents, 
+    initialDrills, 
+    coaches, 
+    needsSetup, 
+    attendanceCounts = {}, 
+    categories = [], 
+    userRole, 
+    currentCategoryId 
+}: { 
+    initialEvents: any[]
+    initialDrills: any[]
+    coaches: any[]
+    needsSetup: boolean
+    attendanceCounts?: Record<string, number>
+    categories?: any[]
+    userRole?: string | null
+    currentCategoryId?: string | null
+}) {
     const supabase = createClient()
     const [events, setEvents] = useState(initialEvents)
     const [drills, setDrills] = useState(initialDrills)
     const [viewMode, setViewMode] = useState<'events' | 'drills'>('events')
     const [eventsLayout, setEventsLayout] = useState<'grid' | 'list'>('grid')
     const { t } = useLang()
+
+    const isAdmin = userRole === 'Admin' || userRole === 'Administrador' || userRole === 'Superadmin'
+
+    const getCookie = (name: string) => {
+        if (typeof window === 'undefined') return null
+        const value = `; ${document.cookie}`
+        const parts = value.split(`; ${name}=`)
+        if (parts.length === 2) return parts.pop()?.split(';').shift()
+        return null
+    }
+
+    const currentSelectedCat = getCookie('roaster_selected_category_id') || 'All'
+    const defaultCategoryId = currentSelectedCat !== 'All' ? currentSelectedCat : (currentCategoryId || '')
 
     // Modals & Inline Edit
     const [isCreatingEvent, setIsCreatingEvent] = useState(false)
@@ -28,8 +59,8 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
     const [loadingExport, setLoadingExport] = useState(false)
 
     // Form states
-    const [newEvent, setNewEvent] = useState({ title: '', event_date: '', event_time: '', location: '', objectives: '' })
-    const [newDrill, setNewDrill] = useState({ name: '', description: '', duration_minutes: 15, focus_level_1: '', focus_level_2: '', youtube_link: '', image_url: '', video_url: '', image_urls: [] as string[], pdf_urls: [] as string[] })
+    const [newEvent, setNewEvent] = useState({ title: '', event_date: '', event_time: '', location: '', objectives: '', category_id: defaultCategoryId })
+    const [newDrill, setNewDrill] = useState({ name: '', description: '', duration_minutes: 15, focus_level_1: '', focus_level_2: '', youtube_link: '', image_url: '', video_url: '', image_urls: [] as string[], pdf_urls: [] as string[], category_id: defaultCategoryId })
 
     // File Upload States
     const [imageFiles, setImageFiles] = useState<File[]>([])
@@ -105,7 +136,8 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
             image_urls: finalImageUrls,
             pdf_urls: finalPdfUrls,
             video_url: finalVideoUrl || null,
-            image_url: finalImageUrls[0] || newDrill.image_url // retrocompatibilidad
+            image_url: finalImageUrls[0] || newDrill.image_url, // retrocompatibilidad
+            category_id: newDrill.category_id || null // null means General/Public
         }
 
         if (editingDrillId) {
@@ -143,7 +175,8 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
             image_url: drill.image_url || '',
             image_urls: drill.image_urls || (drill.image_url ? [drill.image_url] : []),
             pdf_urls: drill.pdf_urls || [],
-            video_url: drill.video_url || ''
+            video_url: drill.video_url || '',
+            category_id: drill.category_id || ''
         })
         setImageFiles([])
         setImagePreviews([])
@@ -157,7 +190,7 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
     const closeDrillModal = () => {
         setIsCreatingDrill(false)
         setEditingDrillId(null)
-        setNewDrill({ name: '', description: '', duration_minutes: 15, focus_level_1: '', focus_level_2: '', youtube_link: '', image_url: '', image_urls: [], pdf_urls: [], video_url: '' })
+        setNewDrill({ name: '', description: '', duration_minutes: 15, focus_level_1: '', focus_level_2: '', youtube_link: '', image_url: '', image_urls: [], pdf_urls: [], video_url: '', category_id: defaultCategoryId })
         setImageFiles([])
         setImagePreviews([])
         setPdfFiles([])
@@ -181,11 +214,23 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
     const handleCreateEvent = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
-        const { data, error } = await supabase.from('events').insert([newEvent]).select()
+        
+        const eventToSave = {
+            title: newEvent.title,
+            event_date: newEvent.event_date,
+            event_time: newEvent.event_time,
+            location: newEvent.location,
+            objectives: newEvent.objectives,
+            category_id: newEvent.category_id || null, // null means General
+            event_type: 'Entrenamiento',
+            status: 'Planificado'
+        }
+
+        const { data, error } = await supabase.from('events').insert([eventToSave]).select()
         if (!error && data) {
             setEvents([data[0], ...events]) // Add to top since it's order desc
             setIsCreatingEvent(false)
-            setNewEvent({ title: '', event_date: '', event_time: '', location: '', objectives: '' })
+            setNewEvent({ title: '', event_date: '', event_time: '', location: '', objectives: '', category_id: defaultCategoryId })
             showSuccessToast('Evento Creado', 'Entrenamiento planificado correctamente.')
         } else {
             console.error(error)
@@ -378,6 +423,25 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
                                 </div>
                             </div>
 
+                            {/* Category Selector for Admins */}
+                            {isAdmin && categories.length > 0 && (
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Categoría / División Asociada</label>
+                                    <select 
+                                        value={newDrill.category_id} 
+                                        onChange={e => setNewDrill({ ...newDrill, category_id: e.target.value })} 
+                                        className="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1526] focus:outline-none focus:ring-2 focus:ring-liceo-accent dark:text-white font-bold"
+                                    >
+                                        <option value="">Público / General (Todas las Categorías)</option>
+                                        {categories.map((cat: any) => (
+                                            <option key={cat.id} value={cat.id}>
+                                                Categoría {cat.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
                             <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-white/5">
                                 <h4 className="text-sm font-bold text-liceo-primary dark:text-[#5EE5F8]">Archivos Adjuntos</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -503,6 +567,26 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Lugar</label>
                                 <input required value={newEvent.location} onChange={e => setNewEvent({ ...newEvent, location: e.target.value })} placeholder="Cancha 1" className="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-liceo-accent dark:text-white font-bold" />
                             </div>
+                            
+                            {/* Category Selector for Admins */}
+                            {isAdmin && categories.length > 0 && (
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Categoría / División</label>
+                                    <select 
+                                        value={newEvent.category_id} 
+                                        onChange={e => setNewEvent({ ...newEvent, category_id: e.target.value })} 
+                                        className="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1526] focus:outline-none focus:ring-2 focus:ring-liceo-accent dark:text-white font-bold"
+                                    >
+                                        <option value="">General (Todas las Categorías)</option>
+                                        {categories.map((cat: any) => (
+                                            <option key={cat.id} value={cat.id}>
+                                                Categoría {cat.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
                             <div>
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Objetivo del Día</label>
                                 <textarea required value={newEvent.objectives} onChange={e => setNewEvent({ ...newEvent, objectives: e.target.value })} placeholder="Duelo, contacto, rucks rápidos..." className="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-liceo-accent dark:text-white min-h-[80px]" />
@@ -547,6 +631,14 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
                                             <button onClick={() => { setEditingEventId(ev.id); setEditingEventTitle(ev.title) }} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-liceo-primary transition-opacity"><Edit2 className="w-4 h-4" /></button>
                                         </h3>
                                     )}
+                                    {(() => {
+                                        const cat = categories.find((c: any) => c.id === ev.category_id)
+                                        return cat ? (
+                                            <span className="inline-block text-[9px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-md mt-1">
+                                                Categoría {cat.name}
+                                            </span>
+                                        ) : null
+                                    })()}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-4 border-b border-gray-100 dark:border-white/5 pb-4 mb-4">
                                     <p suppressHydrationWarning className="text-sm text-liceo-primary dark:text-[#5EE5F8] font-bold flex items-center gap-1.5">
@@ -574,6 +666,14 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
                                         <div className={`text-[9px] px-2 py-0.5 rounded-full uppercase tracking-widest font-bold ${ev.status === 'Cancelado' ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' : isPast ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'}`}>
                                             {statusToDisplay}
                                         </div>
+                                        {(() => {
+                                            const cat = categories.find((c: any) => c.id === ev.category_id)
+                                            return cat ? (
+                                                <span className="text-[9px] px-2 py-0.5 rounded-full uppercase tracking-widest font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                                                    {cat.name}
+                                                </span>
+                                            ) : null
+                                        })()}
                                         <p suppressHydrationWarning className="text-xs text-gray-500 dark:text-gray-400 font-bold flex items-center gap-1.5">
                                             <CalendarDays className="w-3 h-3" />
                                             {new Date(ev.event_date + 'T00:00:00').toLocaleDateString('es-AR')} - {ev.event_time?.slice(0, 5)}hs
@@ -644,7 +744,15 @@ export default function TrainingClient({ initialEvents, initialDrills, coaches, 
                                 <div className="w-10 h-10 bg-liceo-primary/10 dark:bg-[#5EE5F8]/10 text-liceo-primary dark:text-[#5EE5F8] rounded-xl flex items-center justify-center font-black">
                                     <BookOpen className="w-5 h-5" />
                                 </div>
-                                <span className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-white/5 px-2 py-1 rounded-full group-hover:opacity-0 transition-opacity"><Clock className="w-3 h-3" /> {d.duration_minutes}m</span>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-white/5 px-2 py-1 rounded-full group-hover:opacity-0 transition-opacity"><Clock className="w-3 h-3" /> {d.duration_minutes}m</span>
+                                    {d.category_id && (() => {
+                                        const c = categories.find((x: any) => x.id === d.category_id)
+                                        return c ? (
+                                            <span className="text-[8px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded group-hover:opacity-0 transition-opacity">{c.name}</span>
+                                        ) : null
+                                    })()}
+                                </div>
                             </div>
                             <h3 className="font-black text-gray-900 dark:text-white mb-2">{d.name}</h3>
                             <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3 mb-4">{d.description}</p>

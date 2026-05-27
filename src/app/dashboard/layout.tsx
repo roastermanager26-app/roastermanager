@@ -145,7 +145,7 @@ function DashboardHeader() {
         const newCat = e.target.value
         setCookie('roaster_selected_category_id', newCat)
         setSelectedCategoryId(newCat)
-        router.refresh()
+        window.location.reload()
     }
 
     const handleLogout = async () => {
